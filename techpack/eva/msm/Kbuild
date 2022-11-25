@@ -11,10 +11,19 @@ ccflags-y += -I$(srctree)/techpack/eva/msm/eva/ \
 # to follow up with mmrm team if techpack users need to define this for long term?
 KBUILD_CPPFLAGS += -DCONFIG_MSM_MMRM
 
-# ported from Android.mk
-$(info within KBUILD file KBUILD_EXTRA_SYMBOLS = $(KBUILD_EXTRA_SYMBOLS))
+ifeq ($(CONFIG_ARCH_WAIPIO), y)
+# include $(EVA_ROOT)/config/waipio.mk
+KBUILD_CPPFLAGS += -DCONFIG_EVA_WAIPIO=1
+ccflags-y += -DCONFIG_EVA_WAIPIO=1
+endif
 
-msm-cvp-objs := eva/cvp.o \
+ifeq ($(CONFIG_ARCH_KALAMA), y)
+# include $(EVA_ROOT)/config/waipio.mk
+KBUILD_CPPFLAGS += -DCONFIG_EVA_KALAMA=1
+ccflags-y += -DCONFIG_EVA_KALAMA=1
+endif
+
+msm-eva-objs := eva/cvp.o \
         eva/msm_cvp_ioctl.o \
         eva/msm_cvp_platform.o \
         eva/msm_cvp_common.o \
