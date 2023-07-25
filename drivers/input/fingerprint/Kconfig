@@ -18,3 +18,7 @@ if INPUT_FINGERPRINT
 
 source "drivers/input/fingerprint/goodix_fod/Kconfig"
 endif
+if INPUT_FINGERPRINT
+
+source "drivers/input/fingerprint/xiaomi_fp/Kconfig"
+endif
