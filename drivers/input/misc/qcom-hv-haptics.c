@@ -28,7 +28,6 @@
 #include <linux/uaccess.h>
 #include <linux/qpnp/qpnp-pbs.h>
 #include <linux/power_supply.h>
-#include <linux/mmhardware_sysfs.h>
 
 #include <linux/soc/qcom/battery_charger.h>
 
