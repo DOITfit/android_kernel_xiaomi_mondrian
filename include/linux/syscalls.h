@@ -68,6 +68,12 @@ union bpf_attr;
 struct io_uring_params;
 struct clone_args;
 struct open_how;
+struct mount_attr;
+struct landlock_ruleset_attr;
+enum landlock_rule_type;
+struct cachestat_range;
+struct cachestat;
+struct mpol_param;
 
 #include <linux/types.h>
 #include <linux/aio_abi.h>
