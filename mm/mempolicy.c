@@ -321,7 +321,7 @@ static struct mempolicy *mpol_new(struct mempolicy_param *param)
 	atomic_set(&policy->refcnt, 1);
 	policy->mode = mode;
 	policy->flags = flags;
-	policy->home_node = NUMA_NO_NODE;
+	policy->home_node = param->home_node;
 	policy->wil.cur_weight = 0;
 
 	return policy;
@@ -1612,6 +1612,7 @@ static long kernel_set_mempolicy(int mode, const unsigned long __user *nmask,
 	param.mode = lmode;
 	param.mode_flags = mode_flags;
 	param.policy_nodes = &nodes;
+	param.home_node = NUMA_NO_NODE;
 
 	return do_set_mempolicy(&param);
 }
@@ -3117,6 +3118,8 @@ void mpol_shared_policy_init(struct shared_policy *sp, struct mempolicy *mpol)
 		mparam.mode = mpol->mode;
 		mparam.mode_flags = mpol->flags;
 		mparam.policy_nodes = &mpol->w.user_nodemask;
+		mparam.home_node = NUMA_NO_NODE;
+
 		/* contextualize the tmpfs mount point mempolicy to this file */
 		npol = mpol_new(&mparam);
 		if (IS_ERR(npol))
@@ -3283,6 +3286,7 @@ void __init numa_policy_init(void)
 	memset(&param, 0, sizeof(param));
 	param.mode = MPOL_INTERLEAVE;
 	param.policy_nodes = &interleave_nodes;
+	param.home_node = NUMA_NO_NODE;
 
 	if (do_set_mempolicy(&param))
 		pr_err("%s: interleaving failed\n", __func__);
@@ -3297,6 +3301,7 @@ void numa_default_policy(void)
 
 	memset(&param, 0, sizeof(param));
 	param.mode = MPOL_DEFAULT;
+	param.home_node = NUMA_NO_NODE;
 
 	do_set_mempolicy(&param);
 }
@@ -3423,6 +3428,8 @@ int mpol_parse_str(char *str, struct mempolicy **mpol)
 	mparam.mode = mode;
 	mparam.mode_flags = mode_flags;
 	mparam.policy_nodes = &nodes;
+	mparam.home_node = NUMA_NO_NODE;
+
 	new = mpol_new(&mparam);
 	if (IS_ERR(new))
 		goto out;
