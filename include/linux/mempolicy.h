@@ -55,6 +55,12 @@ struct mempolicy {
 		nodemask_t cpuset_mems_allowed;	/* relative to these nodes */
 		nodemask_t user_nodemask;	/* nodemask passed by user */
 	} w;
+
+	/* Weighted interleave settings */
+	struct {
+		u8 cur_weight;
+		u8 scratch_weights[MAX_NUMNODES]; /* Used to avoid allocations */
+	} wil;
 };
 
 /*
