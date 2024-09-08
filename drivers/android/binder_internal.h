@@ -556,12 +556,6 @@ static inline const struct cred *binder_get_cred(struct binder_proc *proc)
 	return eproc->cred;
 }
 
-static inline
-struct binder_proc_ext *proc_wrapper(struct binder_proc *proc)
-{
-	return container_of(proc, struct binder_proc_ext, proc);
-}
-
 /**
  * struct binder_thread - binder thread bookkeeping
  * @proc:                 binder process for this thread
