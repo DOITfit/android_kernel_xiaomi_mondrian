@@ -72,23 +72,6 @@ static char *profile_name[AW_PROFILE_MAX] = {
 
 static int aw_parse_bin_header_1_0_0(struct aw_bin *bin);
 
-/**
-*
-* Interface function
-*
-* return value:
-*       value = 0 :success;
-*       value = -1 :check bin header version
-*       value = -2 :check bin data type
-*       value = -3 :check sum or check bin data len error
-*       value = -4 :check data version
-*       value = -5 :check register num
-*       value = -6 :check dsp reg num
-*       value = -7 :check soc app num
-*       value = -8 :bin is NULL point
-*
-**/
-
 /********************************************************
 *
 * check sum data
@@ -120,7 +103,7 @@ int aw_check_sum(struct aw_bin *bin, int bin_num)
 		p_check_sum = NULL;
 		DBG_ERR("aw_bin_parse check sum or check bin data len error\n");
 		DBG_ERR("aw_bin_parse bin_num=%d, check_sum = 0x%x, sum_data = 0x%x\n", bin_num, check_sum, sum_data);
-		return -3;
+		return -EINVAL;
 	}
 	p_check_sum = NULL;
 
@@ -138,7 +121,7 @@ int aw_check_data_version(struct aw_bin *bin, int bin_num)
 		}
 	}
 	DBG_ERR("aw_bin_parse Unrecognized this bin data version\n");
-	return -4;
+	return -EINVAL;
 }
 
 int aw_check_register_num_v1(struct aw_bin *bin, int bin_num)
@@ -163,7 +146,7 @@ int aw_check_register_num_v1(struct aw_bin *bin, int bin_num)
 		p_check_sum = NULL;
 		DBG_ERR("aw_bin_parse register num is error\n");
 		DBG_ERR("aw_bin_parse bin_num=%d, parse_register_num = 0x%x, check_register_num = 0x%x\n", bin_num, parse_register_num, check_register_num);
-		return -5;
+		return -EINVAL;
 	}
 	bin->header_info[bin_num].reg_num = parse_register_num;
 	bin->header_info[bin_num].valid_data_len =
@@ -199,7 +182,7 @@ int aw_check_dsp_reg_num_v1(struct aw_bin *bin, int bin_num)
 		p_check_sum = NULL;
 		DBG_ERR("aw_bin_parse dsp reg num is error\n");
 		DBG_ERR("aw_bin_parse bin_num=%d, parse_dsp_reg_num = 0x%x, check_dsp_reg_num = 0x%x\n", bin_num, parse_dsp_reg_num, check_dsp_reg_num);
-		return -6;
+		return -EINVAL;
 	}
 	bin->header_info[bin_num].download_addr =
 	    GET_32_DATA(*(p_check_sum + 3), *(p_check_sum + 2),
@@ -239,7 +222,7 @@ int aw_check_soc_app_num_v1(struct aw_bin *bin, int bin_num)
 		p_check_sum = NULL;
 		DBG_ERR("aw_bin_parse soc app num is error\n");
 		DBG_ERR("aw_bin_parse bin_num=%d, parse_soc_app_num = 0x%x, check_soc_app_num = 0x%x\n", bin_num, parse_soc_app_num, check_soc_app_num);
-		return -7;
+		return -EINVAL;
 	}
 	bin->header_info[bin_num].reg_num = parse_soc_app_num;
 	bin->header_info[bin_num].download_addr =
@@ -406,7 +389,7 @@ static int aw_parse_bin_header_1_0_0(struct aw_bin *bin)
 		break;
 	default:
 		DBG_ERR("aw_bin_parse Unrecognized this bin data type\n");
-		return -2;
+		return -EINVAL;
 	}
 	return 0;
 }
@@ -431,7 +414,7 @@ static int aw_check_bin_header_version(struct aw_bin *bin)
 		return ret;
 	default:
 		DBG_ERR("aw_bin_parse Unrecognized this bin header version \n");
-		return -1;
+		return -EINVAL;
 	}
 }
 
@@ -443,7 +426,7 @@ static int aw_parsing_bin_file(struct aw_bin *bin)
 	DBG("aw_bin_parse code version:%s\n", AWINIC_CODE_VERSION);
 	if (!bin) {
 		DBG_ERR("aw_bin_parse bin is NULL\n");
-		return -8;
+		return -EINVAL;
 	}
 	bin->p_addr = bin->info.data;
 	bin->all_bin_parse_num = 0;
