@@ -28,6 +28,7 @@
 #include <linux/syscalls.h>
 #include <sound/control.h>
 #include <linux/uaccess.h>
+#include <linux/miscdevice.h>
 
 
 #include "aw882xx_log.h"
