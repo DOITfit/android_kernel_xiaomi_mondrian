@@ -29,6 +29,8 @@
 #define AW_GET_MAX_VALUE(value1, value2)  \
 	((value1) > (value2) ? (value1) : (value2))
 
+extern int g_algo_auth_st;
+
 enum {
 	AW_1000_US = 1000,
 	AW_2000_US = 2000,
@@ -90,6 +92,21 @@ enum {
 enum AW_SPIN_KCONTROL_STATUS {
 	AW_SPIN_KCONTROL_DISABLE = 0,
 	AW_SPIN_KCONTROL_ENABLE,
+};
+
+enum AW_ALGO_AUTH_MODE {
+	AW_ALGO_AUTH_DISABLE = 0,
+	AW_ALGO_AUTH_MODE_MAGIC_ID,
+	AW_ALGO_AUTH_MODE_REG_CRC,
+};
+
+enum AW_ALGO_AUTH_ID {
+	AW_ALGO_AUTH_MAGIC_ID = 0x4157,
+};
+
+enum AW_ALGO_AUTH_STATUS {
+	AW_ALGO_AUTH_WAIT = 0,
+	AW_ALGO_AUTH_OK = 1,
 };
 
 struct aw_device_ops {
@@ -202,6 +219,7 @@ struct aw_sysst_desc {
 	unsigned int reg;
 	unsigned int mask;
 	unsigned int st_check;
+	unsigned int st_sws_check;
 	unsigned int pll_check;
 };
 
@@ -285,6 +303,55 @@ struct aw_dither_desc {
 	unsigned int disable;
 };
 
+struct aw_noise_gate_desc {
+	unsigned int reg;
+	unsigned int mask;
+};
+
+struct aw_psm_desc {
+	unsigned int reg;
+	unsigned int mask;
+	unsigned int enable;
+	unsigned int disable;
+};
+
+struct aw_mpd_desc {
+	unsigned int reg;
+	unsigned int mask;
+	unsigned int enable;
+	unsigned int disable;
+};
+
+struct aw_dsmzth_desc {
+	unsigned int reg;
+	unsigned int mask;
+	unsigned int enable;
+	unsigned int disable;
+};
+
+struct aw_auth_desc {
+	uint8_t reg_in;
+	uint8_t reg_out;
+	int32_t auth_mode;
+	int32_t reg_crc;
+	int32_t random;
+	int32_t chip_id;
+	int32_t check_result;
+};
+
+struct algo_auth_data {
+	int32_t auth_mode;  /* 0: disable  1 : chip ID  2 : reg crc */
+	int32_t reg_crc;
+	int32_t random;
+	int32_t chip_id;
+	int32_t check_result;
+};
+
+#define AW_IOCTL_MAGIC_S			'w'
+#define AW_IOCTL_GET_ALGO_AUTH			_IOWR(AW_IOCTL_MAGIC_S, 1, struct algo_auth_data)
+#define AW_IOCTL_SET_ALGO_AUTH			_IOWR(AW_IOCTL_MAGIC_S, 2, struct algo_auth_data)
+
+
 struct aw_device {
 	int status;
 	unsigned int chip_id;
@@ -335,6 +402,11 @@ struct aw_device {
 	struct aw_bop_desc bop_desc;
 	struct aw_efcheck_desc efcheck_desc;
 	struct aw_dither_desc dither_desc;
+	struct aw_noise_gate_desc noise_gate_desc;
+	struct aw_psm_desc psm_desc;
+	struct aw_mpd_desc mpd_desc;
+	struct aw_dsmzth_desc dsmzth_desc;
+	struct aw_auth_desc auth_desc;
 	struct aw_device_ops ops;
 	struct list_head list_node;
 };
@@ -383,6 +455,9 @@ void aw882xx_dev_mute(struct aw_device *aw_dev, bool mute);
 
 void aw882xx_dev_monitor_hal_get_time(struct aw_device *aw_dev, uint32_t *time);
 void aw882xx_dev_monitor_hal_work(struct aw_device *aw_dev, uint32_t *vmax);
+
+int aw882xx_dev_algo_auth_mode(struct aw_device *aw_dev, struct algo_auth_data *algo_data);
+void aw882xx_dev_iv_forbidden_output(struct aw_device *aw_dev, bool power_waste);
 
 #endif
 

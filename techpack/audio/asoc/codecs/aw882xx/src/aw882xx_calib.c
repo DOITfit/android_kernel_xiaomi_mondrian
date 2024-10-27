@@ -419,6 +419,8 @@ static int aw_cali_svc_dev_cali_mode_en(struct aw_device *aw_dev, int type, bool
 
 	/* open cali mode */
 	if (is_enable) {
+		aw882xx_dev_iv_forbidden_output(aw_dev, false);
+
 		aw_cali_svc_set_cali_status(aw_dev, true);
 
 		if (type == CALI_TYPE_RE) {
@@ -455,6 +457,8 @@ static int aw_cali_svc_dev_cali_mode_en(struct aw_device *aw_dev, int type, bool
 
 		/*close cali mode*/
 		aw_cali_svc_set_cali_status(aw_dev, false);
+
+		aw882xx_dev_iv_forbidden_output(aw_dev, true);
 	}
 	return 0;
 }

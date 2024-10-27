@@ -56,6 +56,7 @@ static DEFINE_MUTEX(g_aw_dsp_lock);
 #define AW_MSG_ID_F0_R			(0x10013D20)
 #define AW_MSG_ID_REAL_DATA_L		(0x10013D21)
 #define AW_MSG_ID_REAL_DATA_R		(0x10013D22)
+#define AW_MSG_ID_ALGO_AUTHENTICATION	(0x10013D46)
 
 #define AFE_MSG_ID_MSG_0		(0x10013D2A)
 #define AFE_MSG_ID_MSG_1		(0x10013D2B)
@@ -1032,6 +1033,37 @@ int aw882xx_dsp_write_params(struct aw_device *aw_dev, char *data, unsigned int 
 	aw_dev_dbg(aw_dev->dev, "write params done");
 	return ret;
 }
+
+#ifdef AW_ALGO_AUTH_DSP
+int aw882xx_dsp_read_algo_auth_data(struct aw_device *aw_dev,
+		char *data, unsigned int data_len)
+{
+	int ret = 0;
+
+	ret = aw_read_data_from_dsp(AW_MSG_ID_ALGO_AUTHENTICATION, data, data_len);
+	if (ret)
+		aw_dev_err(aw_dev->dev, "read algo auth failed");
+
+	aw_dev_dbg(aw_dev->dev, "read algo auth data done");
+
+	return ret;
+}
+
+int aw882xx_dsp_write_algo_auth_data(struct aw_device *aw_dev,
+		char *data, unsigned int data_len)
+{
+	int ret = 0;
+
+	ret = aw_write_data_to_dsp(AW_MSG_ID_ALGO_AUTHENTICATION, data, data_len);
+	if (ret) {
+		aw_pr_err("write algo auth failed ");
+		return ret;
+	}
+	aw_pr_dbg("write algo auth done");
+
+	return ret;
+}
+#endif
 
 int aw882xx_dsp_read_vmax(struct aw_device *aw_dev, char *data, unsigned int data_len)
 {

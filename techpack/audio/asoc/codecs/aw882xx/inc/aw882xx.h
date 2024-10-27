@@ -54,6 +54,7 @@ enum aw882xx_chipid {
 	PID_2055A_ID = 0x2055A,
 	PID_2071_ID = 0x2071,
 	PID_2113_ID = 0x2113,
+	PID_2308_ID = 0x2308,
 };
 
 #define AW882XX_SOFT_RESET_REG		(0x00)

@@ -37,7 +37,7 @@
 #include "aw882xx_bin_parse.h"
 #include "aw882xx_spin.h"
 
-#define AW882XX_DRIVER_VERSION "Dv1.14.0"
+#define AW882XX_DRIVER_VERSION "v1.15.0"
 #define AW882XX_I2C_NAME "aw882xx_smartpa"
 
 #define AW_READ_CHIPID_RETRIES		5	/* 5 times */
@@ -394,6 +394,7 @@ static int aw882xx_mute(struct snd_soc_dai *dai, int mute, int stream)
 		cancel_delayed_work_sync(&aw882xx->dc_work);
 		cancel_delayed_work_sync(&aw882xx->start_work);
 		mutex_lock(&aw882xx->lock);
+		g_algo_auth_st = AW_ALGO_AUTH_WAIT;
 		aw882xx_device_stop(aw882xx->aw_pa);
 		mutex_unlock(&aw882xx->lock);
 	} else {
@@ -765,6 +766,70 @@ static int aw882xx_volume_put(struct snd_kcontrol *kcontrol,
 	aw882xx_dev_set_volume(aw882xx->aw_pa, compared_vol);
 
 	return 1;
+}
+
+static int aw882xx_algo_auth_info(struct snd_kcontrol *kcontrol,
+			struct snd_ctl_elem_info *uinfo)
+{
+	uinfo->type = SNDRV_CTL_ELEM_TYPE_BYTES;
+	uinfo->count = sizeof(struct algo_auth_data);
+	return 0;
+}
+
+/*op_flag: SNDRV_CTL_TLV_OP_READ = 0, SNDRV_CTL_TLV_OP_WRITE = 1*/
+static int aw882xx_algo_auth_tlv_rw(struct snd_kcontrol *kcontrol, int op_flag,
+			unsigned int size, unsigned int __user *tlv)
+{
+	int ret = 0;
+	aw_snd_soc_codec_t *codec = aw_componet_codec_ops.kcontrol_codec(kcontrol);
+	struct aw882xx *aw882xx = aw_componet_codec_ops.codec_get_drvdata(codec);
+
+	struct aw_device *aw_pa = aw882xx->aw_pa;
+	struct algo_auth_data algo_data;
+
+	aw_dev_dbg(aw882xx->dev, "op_flag = [%d]", op_flag);
+
+	if (!tlv) {
+		aw_dev_err(aw882xx->dev, "tlv is NULL");
+		return -EINVAL;
+	}
+
+	if (size != sizeof(struct algo_auth_data)) {
+		aw_dev_err(aw882xx->dev, "size != algo_auth_data");
+		return -EINVAL;
+	}
+
+	switch (op_flag) {
+	case SNDRV_CTL_TLV_OP_READ:
+		aw_dev_dbg(aw882xx->dev, "get algo auth data");
+		memset(&algo_data, 0x0, sizeof(struct algo_auth_data));
+
+		algo_data.auth_mode = aw_pa->auth_desc.auth_mode;
+		algo_data.chip_id = aw_pa->auth_desc.chip_id;
+		algo_data.random = aw_pa->auth_desc.random;
+		algo_data.reg_crc = aw_pa->auth_desc.reg_crc;
+		algo_data.check_result = aw_pa->auth_desc.check_result;
+
+		if (copy_to_user((void __user *)tlv, (char *)&algo_data, size))
+			ret = -EFAULT;
+		break;
+	case SNDRV_CTL_TLV_OP_WRITE:
+		aw_dev_dbg(aw882xx->dev, "set algo auth data");
+		if (copy_from_user(&algo_data, (void __user *)tlv, size))
+			ret = -EFAULT;
+
+		aw882xx_dev_algo_auth_mode(aw_pa, &algo_data);
+		break;
+	default:
+		aw_dev_dbg(aw882xx->dev, "unsupport op flag[0x%x]", op_flag);
+		return -EINVAL;
+	}
+
+	aw_dev_dbg(aw882xx->dev, "mode=%d,reg_crc=0x%x,random=0x%x,id=0x%x,res=%d",
+		algo_data.auth_mode, algo_data.reg_crc, algo_data.random,
+		algo_data.chip_id, algo_data.check_result);
+
+	return ret;
 }
 
 static int aw882xx_dynamic_create_controls(struct aw882xx *aw882xx)
@@ -1424,7 +1489,30 @@ static struct snd_kcontrol_new aw882xx_spin_control[] = {
 
 static void aw882xx_add_codec_controls(struct aw882xx *aw882xx)
 {
+	struct snd_kcontrol_new *aw882xx_dev_control = NULL;
+	char *kctl_name = NULL;
+
 	aw_dev_dbg(aw882xx->dev, "enter");
+
+	aw882xx_dev_control = devm_kzalloc(aw882xx->codec->dev,
+				sizeof(struct snd_kcontrol_new), GFP_KERNEL);
+
+	if (aw882xx_dev_control == NULL)
+		return;
+
+	kctl_name = devm_kzalloc(aw882xx->codec->dev, AW_NAME_BUF_MAX, GFP_KERNEL);
+	if (!kctl_name)
+		return;
+
+	snprintf(kctl_name, AW_NAME_BUF_MAX, "aw_algo_auth");
+
+	aw882xx_dev_control[0].name = kctl_name;
+	aw882xx_dev_control[0].iface = SNDRV_CTL_ELEM_IFACE_MIXER;
+	aw882xx_dev_control[0].access = SNDRV_CTL_ELEM_ACCESS_TLV_CALLBACK|SNDRV_CTL_ELEM_ACCESS_TLV_READWRITE;
+	aw882xx_dev_control[0].info = aw882xx_algo_auth_info;
+	aw882xx_dev_control[0].tlv.c = aw882xx_algo_auth_tlv_rw;
+
+	aw_componet_codec_ops.add_codec_controls(aw882xx->codec, aw882xx_dev_control, 1);
 
 	aw_componet_codec_ops.add_codec_controls(aw882xx->codec,
 				&aw882xx_controls[0], ARRAY_SIZE(aw882xx_controls));
@@ -2038,6 +2126,11 @@ static int aw882xx_read_chipid(struct aw882xx *aw882xx)
 		}
 		case PID_2113_ID: {
 			aw_dev_info(aw882xx->dev, "aw882xx 2113 detected");
+			aw882xx->aw_pa->chip_id = reg_value;
+			return 0;
+		}
+		case PID_2308_ID: {
+			aw_dev_info(aw882xx->dev, "aw882xx 2308 detected");
 			aw882xx->aw_pa->chip_id = reg_value;
 			return 0;
 		}
@@ -2741,7 +2834,11 @@ err_sysfs:
 	return ret;
 }
 
+#ifdef AW_KERNEL_VER_OVER_6_1_0
+static void aw882xx_i2c_remove(struct i2c_client *i2c)
+#else
 static int aw882xx_i2c_remove(struct i2c_client *i2c)
+#endif
 {
 	struct aw882xx *aw882xx = i2c_get_clientdata(i2c);
 
@@ -2752,12 +2849,6 @@ static int aw882xx_i2c_remove(struct i2c_client *i2c)
 		devm_free_irq(&i2c->dev,
 			gpio_to_irq(aw882xx->irq_gpio),
 			aw882xx);
-
-	/*free gpio*/
-	if (gpio_is_valid(aw882xx->irq_gpio))
-		devm_gpio_free(&i2c->dev, aw882xx->irq_gpio);
-	if (gpio_is_valid(aw882xx->reset_gpio))
-		devm_gpio_free(&i2c->dev, aw882xx->reset_gpio);
 
 #ifndef CONFIG_TARGET_PRODUCT_ZIYI
 	if (gpio_is_valid(aw882xx->spksw_gpio))
@@ -2784,8 +2875,10 @@ static int aw882xx_i2c_remove(struct i2c_client *i2c)
 	}
 	mutex_unlock(&g_aw882xx_lock);
 
-	return 0;
-
+#ifdef AW_KERNEL_VER_OVER_6_1_0
+#else
+		return 0;
+#endif
 }
 
 static void aw882xx_i2c_shutdown(struct i2c_client *i2c)

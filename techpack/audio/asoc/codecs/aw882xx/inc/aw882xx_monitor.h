@@ -44,6 +44,7 @@ enum {
 enum aw_monitor_hdr_ver {
 	AW_MONITOR_HDR_VER_0_1_0 = 0x00010000,
 	AW_MONITOR_HDR_VER_0_1_1 = 0x00010100,
+	AW_MONITOR_HDR_VER_0_1_2 = 0x00010200,
 };
 
 enum aw_monitor_init {
@@ -84,6 +85,9 @@ enum {
 	MONITOR_VMAX_EN_BIT = 4,
 	MONITOR_TEMP_EN_BIT = 5,
 	MONITOR_VOL_EN_BIT = 6,
+	MONITOR_TEMPERATURE_SOURCE_BIT = 7,
+	MONITOR_VOLTAGE_SOURCE_BIT = 8,
+	MONITOR_VOLTAGE_MODE_BIT = 9,
 };
 
 struct aw_monitor_hdr_v_0_1_1 {
@@ -113,6 +117,36 @@ struct aw_monitor_hdr_v_0_1_1 {
 	uint32_t reserver[3];
 };
 
+/* v0.1.2 */
+struct aw_monitor_hdr_v_0_1_2 {
+	uint32_t check_sum;
+	uint32_t monitor_ver;
+	char chip_type[16];
+	uint32_t ui_ver;
+	uint32_t monitor_time;
+	uint32_t monitor_count;
+	uint32_t enable_flag;
+		/* [bit 31:7]*/
+		/* [bit 9: voltage mode]*/
+		/* [bit 8: voltage source]*/
+		/* [bit 7: temperature source]*/
+		/* [bit 6: vol en]*/
+		/* [bit 5: temp en]*/
+		/* [bit 4: vmax en]*/
+		/* [bit 3: gain en]*/
+		/* [bit 2: ipeak en]*/
+		/* [bit 1: & or | flag]*/
+		/* [bit 0: monitor en]*/
+	uint32_t temp_aplha;
+	uint32_t temp_num;
+	uint32_t single_temp_size;
+	uint32_t temp_offset;
+	uint32_t vol_aplha;
+	uint32_t vol_num;
+	uint32_t single_vol_size;
+	uint32_t vol_offset;
+	uint32_t reserver[3];
+};
 
 struct aw_table {
 	int16_t min_val;
@@ -140,6 +174,9 @@ struct aw_monitor_cfg {
 	uint32_t ipeak_switch;
 	uint32_t gain_switch;
 	uint32_t vmax_switch;
+	uint32_t temp_source;
+	uint32_t vol_source;
+	uint32_t vol_mode;
 	struct aw_table_info temp_info;
 	struct aw_table_info vol_info;
 };

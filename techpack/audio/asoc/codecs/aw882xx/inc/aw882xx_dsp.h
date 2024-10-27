@@ -18,6 +18,9 @@
 #define AW_AUDIOREACH_PLATFORM
 
 /*#define AW_QCOM_ADM_MSG*/
+
+/*#define AW_ALGO_AUTH_DSP*/
+
 /*factor form 12bit(4096) to 1000*/
 #define AW_DSP_RE_TO_SHOW_RE(re)	(((re) * (1000)) >> (12))
 #define AW_SHOW_RE_TO_DSP_RE(re)	(((re) << 12) / (1000))
@@ -99,6 +102,11 @@ int aw882xx_get_algo_version(struct aw_device *aw_dev, char *algo_ver_buf);
 void aw882xx_device_parse_topo_id_dt(struct aw_device *aw_dev);
 void aw882xx_device_parse_port_id_dt(struct aw_device *aw_dev);
 int aw882xx_dsp_set_mixer_en(struct aw_device *aw_dev, uint32_t mixer_en);
-
+#ifdef AW_ALGO_AUTH_DSP
+int aw882xx_dsp_read_algo_auth_data(struct aw_device *aw_dev,
+		char *data, unsigned int data_len);
+int aw882xx_dsp_write_algo_auth_data(struct aw_device *aw_dev,
+		char *data, unsigned int data_len);
+#endif
 #endif
 

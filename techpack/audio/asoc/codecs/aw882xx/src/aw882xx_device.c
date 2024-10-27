@@ -47,7 +47,302 @@ static unsigned int g_fade_out_time = AW_1000_US >> 1;
 static LIST_HEAD(g_dev_list);
 static DEFINE_MUTEX(g_dev_lock);
 
-/*********************************awinic acf*************************************/
+static DEFINE_MUTEX(g_algo_auth_dsp_lock);
+int g_algo_auth_st;
+
+/*********************************algo auth*************************************/
+int aw882xx_dev_get_encrypted_value(struct aw_device *aw_dev,
+			unsigned int in, unsigned int *out)
+{
+	int ret = 0;
+	struct aw_auth_desc *desc = &aw_dev->auth_desc;
+
+	if ((!desc->reg_in) || (!desc->reg_out)) {
+		aw_dev_dbg(aw_dev->dev, "Missing encryption register");
+		return -EINVAL;
+	}
+
+	ret = aw_dev->ops.aw_i2c_write(aw_dev, desc->reg_in, in);
+	if (ret < 0)
+		return ret;
+
+	ret = aw_dev->ops.aw_i2c_read(aw_dev, desc->reg_out, out);
+
+	return ret;
+}
+
+int aw882xx_dev_algo_auth_mode(struct aw_device *aw_dev, struct algo_auth_data *algo_data)
+{
+	int ret = 0;
+	unsigned int encrypted_out = 0;
+
+	aw_dev_info(aw_dev->dev, "algo auth mode: %d", algo_data->auth_mode);
+
+	aw_dev->auth_desc.auth_mode = algo_data->auth_mode;
+	aw_dev->auth_desc.random = algo_data->random;
+	aw_dev->auth_desc.chip_id = AW_ALGO_AUTH_MAGIC_ID;
+	aw_dev->auth_desc.check_result = algo_data->check_result;
+
+	switch (algo_data->auth_mode) {
+	case AW_ALGO_AUTH_MODE_MAGIC_ID:
+		aw_dev->auth_desc.reg_crc = algo_data->reg_crc;
+		break;
+	case AW_ALGO_AUTH_MODE_REG_CRC:
+		ret = aw882xx_dev_get_encrypted_value(aw_dev, algo_data->random, &encrypted_out);
+		if (ret < 0)
+			aw_dev_err(aw_dev->dev, "get encrypted value failed");
+
+		aw_dev->auth_desc.reg_crc = encrypted_out;
+		break;
+	default:
+		aw_dev_err(aw_dev->dev, "unsupport auth mode[%d]", algo_data->auth_mode);
+		ret = -EINVAL;
+	}
+	return ret;
+}
+
+#ifdef AW_ALGO_AUTH_DSP
+int aw882xx_dev_algo_auth_dsp_mode(struct aw_device *aw_dev, struct algo_auth_data *algo_data)
+{
+	int ret = 0;
+	unsigned int encrypted_out = 0;
+
+	aw_dev_info(aw_dev->dev, "algo auth mode: %d", algo_data->auth_mode);
+
+	algo_data->chip_id = AW_ALGO_AUTH_MAGIC_ID;
+
+	if (algo_data->auth_mode == AW_ALGO_AUTH_MODE_REG_CRC) {
+		ret = aw882xx_dev_get_encrypted_value(aw_dev, algo_data->random, &encrypted_out);
+		if (ret < 0)
+			aw_dev_err(aw_dev->dev, "get encrypted value failed");
+
+		algo_data->reg_crc = encrypted_out;
+	}
+
+	return ret;
+}
+
+void aw882xx_dev_algo_authentication(struct aw_device *aw_dev)
+{
+	int ret = 0;
+	struct algo_auth_data algo_data;
+
+	mutex_lock(&g_algo_auth_dsp_lock);
+
+	aw_dev_dbg(aw_dev->dev, "g_algo_auth_st=%d", g_algo_auth_st);
+
+	if (g_algo_auth_st == AW_ALGO_AUTH_OK) {
+		aw_dev_dbg(aw_dev->dev, "algo auth complete");
+		goto exit;
+	}
+
+	ret = aw882xx_dsp_read_algo_auth_data(aw_dev, (char *)&algo_data, sizeof(struct algo_auth_data));
+	if (ret < 0)
+		goto exit;
+
+	ret = aw882xx_dev_algo_auth_dsp_mode(aw_dev, &algo_data);
+	if (ret < 0)
+		goto exit;
+
+	ret = aw882xx_dsp_write_algo_auth_data(aw_dev, (char *)&algo_data, sizeof(struct algo_auth_data));
+	if (ret < 0)
+		goto exit;
+
+	g_algo_auth_st = AW_ALGO_AUTH_OK;
+	aw_dev_info(aw_dev->dev, "g_algo_auth_st=%d", g_algo_auth_st);
+
+	aw_dev_dbg(aw_dev->dev, "mode=%d,reg_crc=0x%x,random=0x%x,id=0x%x,res=%d",
+		algo_data.auth_mode, algo_data.reg_crc, algo_data.random,
+		algo_data.chip_id, algo_data.check_result);
+
+exit:
+	mutex_unlock(&g_algo_auth_dsp_lock);
+}
+#endif
+/*********************************algo_auth_misc*************************************/
+static int aw_algo_auth_misc_ops_write(struct aw_device *aw_dev,
+		unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	unsigned int data_len = _IOC_SIZE(cmd);
+	struct algo_auth_data algo_data;
+
+	aw_dev_dbg(aw_dev->dev, "write algo auth data, len=%d", data_len);
+
+	if (copy_from_user(&algo_data, (void __user *)arg, data_len))
+		ret = -EFAULT;
+
+	aw882xx_dev_algo_auth_mode(aw_dev, &algo_data);
+
+	aw_dev_dbg(aw_dev->dev, "ret=%d,mode=%d,reg_crc=0x%x,random=0x%x,id=0x%x,res=%d",
+		ret, algo_data.auth_mode, algo_data.reg_crc, algo_data.random,
+		algo_data.chip_id, algo_data.check_result);
+
+	return ret;
+}
+
+static int aw_algo_auth_misc_ops_read(struct aw_device *aw_dev,
+		unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	int16_t data_len = _IOC_SIZE(cmd);
+	struct algo_auth_data algo_data;
+
+	aw_dev_dbg(aw_dev->dev, "read algo auth data, len=%d", data_len);
+	memset(&algo_data, 0x0, sizeof(struct algo_auth_data));
+
+	algo_data.auth_mode = aw_dev->auth_desc.auth_mode;
+	algo_data.chip_id = aw_dev->auth_desc.chip_id;
+	algo_data.random = aw_dev->auth_desc.random;
+	algo_data.reg_crc = aw_dev->auth_desc.reg_crc;
+	algo_data.check_result = aw_dev->auth_desc.check_result;
+
+	if (copy_to_user((void __user *)arg, (char *)&algo_data, data_len))
+		ret = -EFAULT;
+
+	aw_dev_dbg(aw_dev->dev, "ret=%d,mode=%d,reg_crc=0x%x,random=0x%x,id=0x%x,res=%d",
+		ret, algo_data.auth_mode, algo_data.reg_crc, algo_data.random,
+		algo_data.chip_id, algo_data.check_result);
+
+	return ret;
+}
+
+static int aw_algo_auth_misc_ops(struct aw_device *aw_dev,
+			unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+
+	switch (cmd) {
+	case AW_IOCTL_SET_ALGO_AUTH: {
+		ret = aw_algo_auth_misc_ops_write(aw_dev, cmd, arg);
+	} break;
+	case AW_IOCTL_GET_ALGO_AUTH: {
+		ret = aw_algo_auth_misc_ops_read(aw_dev, cmd, arg);
+	} break;
+	default:
+		aw_dev_err(aw_dev->dev, "unsupported  cmd %d", cmd);
+		ret = -EINVAL;
+		break;
+	}
+
+	return ret;
+}
+
+static long aw_algo_auth_misc_unlocked_ioctl(struct file *file,
+			unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	struct aw_device *aw_dev = NULL;
+
+	if (((_IOC_TYPE(cmd)) != (AW_IOCTL_MAGIC_S))) {
+		aw_pr_err("cmd magic err");
+		return -EINVAL;
+	}
+	aw_dev = (struct aw_device *)file->private_data;
+	ret = aw_algo_auth_misc_ops(aw_dev, cmd, arg);
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+
+#ifdef CONFIG_COMPAT
+static long aw_algo_auth_misc_compat_ioctl(struct file *file,
+	unsigned int cmd, unsigned long arg)
+{
+	int ret = 0;
+	struct aw_device *aw_dev = NULL;
+
+	if (((_IOC_TYPE(cmd)) != (AW_IOCTL_MAGIC_S))) {
+		aw_pr_err("cmd magic err");
+		return -EINVAL;
+	}
+	aw_dev = (struct aw_device *)file->private_data;
+	ret = aw_algo_auth_misc_ops(aw_dev, cmd, arg);
+	if (ret)
+		return -EINVAL;
+
+	return 0;
+}
+#endif
+
+static int aw_algo_auth_misc_open(struct inode *inode, struct file *file)
+{
+	int ret;
+	struct list_head *dev_list = NULL;
+	struct list_head *pos = NULL;
+	struct aw_device *local_dev = NULL;
+
+	ret = aw882xx_dev_get_list_head(&dev_list);
+	if (ret) {
+		aw_pr_err("get dev list failed");
+		file->private_data = NULL;
+		return -EINVAL;
+	}
+
+	/* find select dev */
+	list_for_each(pos, dev_list) {
+		local_dev = container_of(pos, struct aw_device, list_node);
+		if (local_dev->channel == 0)
+			break;
+	}
+
+	if (local_dev == NULL) {
+		aw_pr_err("can't find dev num %d", 0);
+		return -EINVAL;
+	}
+
+	file->private_data = (void *)local_dev;
+
+	aw_dev_dbg(local_dev->dev, "misc open success");
+	return 0;
+}
+
+
+static int aw_algo_auth_misc_release(struct inode *inode, struct file *file)
+{
+	file->private_data = (void *)NULL;
+
+	aw_pr_dbg("misc release success");
+	return 0;
+}
+
+static const struct file_operations aw_algo_auth_misc_fops = {
+	.owner = THIS_MODULE,
+	.open = aw_algo_auth_misc_open,
+	.release = aw_algo_auth_misc_release,
+	.unlocked_ioctl = aw_algo_auth_misc_unlocked_ioctl,
+#ifdef CONFIG_COMPAT
+	.compat_ioctl = aw_algo_auth_misc_compat_ioctl,
+#endif
+};
+
+static struct miscdevice misc_algo_auth = {
+	.name = "awinic_ctl",
+	.minor = MISC_DYNAMIC_MINOR,
+	.fops  = &aw_algo_auth_misc_fops,
+};
+
+static int aw882xx_algo_auth_misc_init(struct aw_device *aw_dev)
+{
+	int ret;
+
+	ret = misc_register(&misc_algo_auth);
+	if (ret) {
+		aw_dev_err(aw_dev->dev, "misc register fail: %d\n", ret);
+		return -EINVAL;
+	}
+
+	return 0;
+}
+
+static void aw882xx_algo_auth_misc_deinit(struct aw_device *aw_dev)
+{
+	misc_deregister(&misc_algo_auth);
+
+	aw_dev_dbg(aw_dev->dev, " misc unregister done");
+}
+
 void aw882xx_dev_monitor_hal_get_time(struct aw_device *aw_dev, uint32_t *time)
 {
 	aw882xx_monitor_hal_get_time(&aw_dev->monitor_desc, time);
@@ -547,6 +842,67 @@ static void aw_dev_set_dither(struct aw_device *aw_dev, bool dither)
 	aw_dev_info(aw_dev->dev, "done");
 }
 
+static void aw_dev_set_psm(struct aw_device *aw_dev, bool psm)
+{
+	struct aw_psm_desc *desc = &aw_dev->psm_desc;
+
+	aw_dev_dbg(aw_dev->dev, "enter, psm: %d", psm);
+	if (desc->reg == AW_REG_NONE)
+		return;
+
+	if (psm)
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, desc->reg,
+			desc->mask, desc->enable);
+	else
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, desc->reg,
+			desc->mask, desc->disable);
+
+	aw_dev_info(aw_dev->dev, "done");
+}
+
+static void aw_dev_set_mpd(struct aw_device *aw_dev, bool mpd)
+{
+	struct aw_mpd_desc *desc = &aw_dev->mpd_desc;
+
+	aw_dev_dbg(aw_dev->dev, "enter, mpd: %d", mpd);
+	if (desc->reg == AW_REG_NONE)
+		return;
+
+	if (mpd)
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, desc->reg,
+			desc->mask, desc->enable);
+	else
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, desc->reg,
+			desc->mask, desc->disable);
+
+	aw_dev_info(aw_dev->dev, "done");
+}
+
+static void aw_dev_set_dsmzth(struct aw_device *aw_dev, bool dsmzth)
+{
+	struct aw_dsmzth_desc *desc = &aw_dev->dsmzth_desc;
+
+	aw_dev_dbg(aw_dev->dev, "enter, dsmzth: %d", dsmzth);
+	if (desc->reg == AW_REG_NONE)
+		return;
+
+	if (dsmzth)
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, desc->reg,
+			desc->mask, desc->enable);
+	else
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, desc->reg,
+			desc->mask, desc->disable);
+
+	aw_dev_info(aw_dev->dev, "done");
+}
+
+void aw882xx_dev_iv_forbidden_output(struct aw_device *aw_dev, bool power_waste)
+{
+	aw_dev_set_psm(aw_dev, power_waste);
+	aw_dev_set_mpd(aw_dev, power_waste);
+	aw_dev_set_dsmzth(aw_dev, power_waste);
+}
+
 int aw882xx_dev_get_int_status(struct aw_device *aw_dev, uint16_t *int_status)
 {
 	int ret = -1;
@@ -665,11 +1021,23 @@ static int aw_dev_sysst_check(struct aw_device *aw_dev)
 	int ret = -1;
 	unsigned char i;
 	unsigned int reg_val = 0;
+	unsigned int check_value = 0;
 	struct aw_sysst_desc *desc = &aw_dev->sysst_desc;
+	struct aw_noise_gate_desc *noise_gate_desc = &aw_dev->noise_gate_desc;
+
+	check_value = desc->st_check;
+
+	if (noise_gate_desc->reg != AW_REG_NONE) {
+		aw_dev->ops.aw_i2c_read(aw_dev, noise_gate_desc->reg, &reg_val);
+		if (reg_val & (~noise_gate_desc->mask))
+			check_value = desc->st_check;
+		else
+			check_value = desc->st_sws_check;
+	}
 
 	for (i = 0; i < AW_DEV_SYSST_CHECK_MAX; i++) {
 		aw_dev->ops.aw_i2c_read(aw_dev, desc->reg, &reg_val);
-		if (((reg_val & (~desc->mask)) & desc->st_check) == desc->st_check) {
+		if (((reg_val & (~desc->mask)) & check_value) == check_value) {
 			ret = 0;
 			break;
 		}
@@ -1026,7 +1394,9 @@ int aw882xx_device_start(struct aw_device *aw_dev)
 
 	aw882xx_monitor_start(&aw_dev->monitor_desc);
 	aw_dev_cali_re_update(aw_dev);
-
+#ifdef AW_ALGO_AUTH_DSP
+	aw882xx_dev_algo_authentication(aw_dev);
+#endif
 	aw_dev->status = AW_DEV_PW_ON;
 	aw_dev_dbg(aw_dev->dev, "done");
 	return 0;
@@ -1180,6 +1550,9 @@ int aw882xx_device_probe(struct aw_device *aw_dev)
 	if (ret)
 		return ret;
 
+	if (aw_dev->channel == 0)
+		aw882xx_algo_auth_misc_init(aw_dev);
+
 	ret = aw882xx_cali_init(&aw_dev->cali_desc);
 	if (ret)
 		return ret;
@@ -1202,6 +1575,8 @@ int aw882xx_device_remove(struct aw_device *aw_dev)
 {
 	aw882xx_monitor_deinit(&aw_dev->monitor_desc);
 	aw882xx_cali_deinit(&aw_dev->cali_desc);
+	if (aw_dev->channel == 0)
+		aw882xx_algo_auth_misc_deinit(aw_dev);
 	/*aw_afe_deinit();*/
 	return 0;
 }
