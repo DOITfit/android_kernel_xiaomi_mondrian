@@ -1701,9 +1701,6 @@ static void aw882xx_add_widgets(struct aw882xx *aw882xx)
 
 static void aw882xx_load_fw(struct aw882xx *aw882xx)
 {
-#if defined (AW_QCOM_PLATFORM) || defined(AW_AUDIOREACH_PLATFORM)
-	aw882xx_request_firmware(&aw882xx->fw_work.work);
-#else
 	if (aw882xx->sync_load) {
 		aw882xx_request_firmware(&aw882xx->fw_work.work);
 	} else {
@@ -1711,7 +1708,6 @@ static void aw882xx_load_fw(struct aw882xx *aw882xx)
 				&aw882xx->fw_work,
 				msecs_to_jiffies(AW882XX_LOAD_FW_DELAY_TIME));
 	}
-#endif
 }
 
 static int aw882xx_codec_probe(aw_snd_soc_codec_t *aw_codec)
@@ -2019,9 +2015,15 @@ static void aw882xx_parse_sync_load_dt(struct aw882xx *aw882xx)
 
 	ret = of_property_read_u32(np, "sync-load", &sync_load);
 	if (ret < 0) {
+#if defined (AW_QCOM_PLATFORM) || defined(AW_AUDIOREACH_PLATFORM)
 		aw_dev_info(aw882xx->dev,
-			"read sync load failed,default async loading fw");
-		sync_load = false;
+			"read sync load failed, default sync loading fw");
+		sync_load = 1;
+#else
+		aw_dev_info(aw882xx->dev,
+			"read sync load failed, default async loading fw");
+		sync_load = 0;
+#endif
 	} else {
 		aw_dev_info(aw882xx->dev,
 			"sync load is %d", sync_load);
