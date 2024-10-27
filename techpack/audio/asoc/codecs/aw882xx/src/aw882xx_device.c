@@ -1,3 +1,16 @@
+// SPDX-License-Identifier: GPL-2.0
+/* aw882xx_device.c
+ *
+ * Copyright (c) 2020 AWINIC Technology CO., LTD
+ *
+ * Author: Nick Li <liweilei@awinic.com.cn>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ */
+
 /* #define DEBUG */
 #include <linux/module.h>
 #include <linux/i2c.h>
@@ -62,54 +75,13 @@ static void aw_dev_reg_dump(struct aw_device *aw_dev)
 
 char *aw882xx_dev_get_ext_dsp_prof_write(void)
 {
-	return (&ext_dsp_prof_write);
+	return &ext_dsp_prof_write;
 }
 
 struct mutex *aw882xx_dev_get_ext_dsp_prof_wr_lock(void)
 {
-	return (&g_ext_dsp_prof_wr_lock);
+	return &g_ext_dsp_prof_wr_lock;
 }
-
-/*
-static int aw_dev_dsp_fw_update(struct aw_device *aw_dev)
-{
-	int  ret;
-	struct aw_sec_data_desc *dsp_data;
-
-	char *prof_name = aw882xx_dev_get_prof_name(aw_dev, aw_dev->set_prof);
-
-	if (prof_name == NULL) {
-		aw_dev_err(aw_dev->dev, "get prof name failed");
-		return -EINVAL;
-	}
-
-	dsp_data = aw882xx_dev_get_prof_data(aw_dev,
-		aw_dev->set_prof, AW_PROFILE_DATA_TYPE_DSP);
-	if (dsp_data == NULL ||
-		dsp_data->data == NULL ||
-			dsp_data->len == 0) {
-		aw_dev_info(aw_dev->dev, "dsp data is NULL");
-		return 0;
-	}
-
-	mutex_lock(&g_ext_dsp_prof_wr_lock);
-	if (ext_dsp_prof_write == AW_EXT_DSP_WRITE_NONE) {
-		ret = aw882xx_dsp_write_params(aw_dev, dsp_data->data, dsp_data->len);
-		if (ret) {
-			aw_dev_err(aw_dev->dev, "dsp params update failed !");
-			mutex_unlock(&g_ext_dsp_prof_wr_lock);
-			return ret;
-		}
-		ext_dsp_prof_write = AW_EXT_DSP_WRITE;
-	} else {
-		aw_dev_dbg(aw_dev->dev, "dsp params already update !");
-	}
-	mutex_unlock(&g_ext_dsp_prof_wr_lock);
-
-	aw_dev_info(aw_dev->dev, "load %s done", prof_name);
-	return 0;
-}
-*/
 
 static int aw_dev_get_icalk(struct aw_device *aw_dev, int16_t *icalk)
 {
@@ -336,6 +308,10 @@ static int aw_dev_reg_fw_update(struct aw_device *aw_dev)
 		}
 
 		if (reg_addr == aw_dev->txen_desc.reg) {
+			/*get bin value*/
+			aw_dev->txen_st = reg_val & (~aw_dev->txen_desc.mask);
+			aw_dev_dbg(aw_dev->dev, "txen_st=0x%04x", aw_dev->txen_st);
+
 			reg_val &= aw_dev->txen_desc.mask;
 			reg_val |= aw_dev->txen_desc.disable;
 		}
@@ -345,6 +321,10 @@ static int aw_dev_reg_fw_update(struct aw_device *aw_dev)
 				aw_dev->volume_desc.shift;
 			aw_dev->volume_desc.init_volume =
 				aw_dev->ops.aw_reg_val_to_db(read_vol);
+		}
+		if (reg_addr == aw_dev->dither_desc.reg) {
+			aw_dev->dither_st = reg_val & (~aw_dev->dither_desc.mask);
+			aw_dev_info(aw_dev->dev, "dither_st=0x%04x", aw_dev->dither_st);
 		}
 
 		if (reg_addr == aw_dev->vcalb_desc.vcalb_reg)
@@ -371,8 +351,10 @@ static int aw_dev_reg_fw_update(struct aw_device *aw_dev)
 		vol_desc->ctl_volume = 0;
 
 
-	/*keep min volume*/
-	aw882xx_dev_set_volume(aw_dev, vol_desc->mute_volume);
+	if (aw_dev->fade_en) {
+		/*keep min volume*/
+		aw882xx_dev_set_volume(aw_dev, vol_desc->mute_volume);
+	}
 
 	aw_dev_info(aw_dev->dev, "load %s done", prof_name);
 
@@ -420,6 +402,9 @@ static void aw_dev_fade_in(struct aw_device *aw_dev)
 	struct aw_volume_desc *desc = &aw_dev->volume_desc;
 	int fade_in_vol = desc->ctl_volume;
 
+	if (!aw_dev->fade_en)
+		return;
+
 	if (fade_step == 0 || g_fade_in_time == 0) {
 		aw882xx_dev_set_volume(aw_dev, fade_in_vol);
 		return;
@@ -441,6 +426,9 @@ static void aw_dev_fade_out(struct aw_device *aw_dev)
 	int i = 0;
 	int fade_step = aw_dev->vol_step;
 	struct aw_volume_desc *desc = &aw_dev->volume_desc;
+
+	if (!aw_dev->fade_en)
+		return;
 
 	if (fade_step == 0 || g_fade_out_time == 0) {
 		aw882xx_dev_set_volume(aw_dev, desc->mute_volume);
@@ -537,6 +525,27 @@ static void aw_dev_uls_hmute(struct aw_device *aw_dev, bool uls_hmute)
 	aw_dev_dbg(aw_dev->dev, "done");
 }
 
+static void aw_dev_set_dither(struct aw_device *aw_dev, bool dither)
+{
+	struct aw_dither_desc *dither_desc = &aw_dev->dither_desc;
+
+	aw_dev_dbg(aw_dev->dev, "enter, dither: %d", dither);
+
+	if (dither_desc->reg == AW_REG_NONE)
+		return;
+
+	if (dither) {
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, dither_desc->reg,
+				dither_desc->mask,
+				dither_desc->enable);
+	} else {
+		aw_dev->ops.aw_i2c_write_bits(aw_dev, dither_desc->reg,
+				dither_desc->mask,
+				dither_desc->disable);
+	}
+
+	aw_dev_info(aw_dev->dev, "done");
+}
 
 int aw882xx_dev_get_int_status(struct aw_device *aw_dev, uint16_t *int_status)
 {
@@ -591,11 +600,10 @@ static int aw_dev_mode1_pll_check(struct aw_device *aw_dev)
 		if ((reg_val & desc->pll_check) == desc->pll_check) {
 			ret = 0;
 			break;
-		} else {
-			aw_dev_dbg(aw_dev->dev, "check pll lock fail, cnt=%d, reg_val=0x%04x",
-					i, reg_val);
-			usleep_range(AW_2000_US, AW_2000_US + 10);
 		}
+		aw_dev_dbg(aw_dev->dev, "check pll lock fail, cnt=%d, reg_val=0x%04x",
+				i, reg_val);
+		usleep_range(AW_2000_US, AW_2000_US + 10);
 	}
 	if (ret < 0)
 		aw_dev_err(aw_dev->dev, "pll&clk check fail");
@@ -644,7 +652,7 @@ static int aw_dev_syspll_check(struct aw_device *aw_dev)
 		aw_dev_err(aw_dev->dev,
 			"mode1 check iis failed try switch to mode2 check");
 
-		ret= aw_dev_mode2_pll_check(aw_dev);
+		ret = aw_dev_mode2_pll_check(aw_dev);
 		if (ret < 0)
 			aw_dev_err(aw_dev->dev, "mode2 check iis failed");
 	}
@@ -664,11 +672,10 @@ static int aw_dev_sysst_check(struct aw_device *aw_dev)
 		if (((reg_val & (~desc->mask)) & desc->st_check) == desc->st_check) {
 			ret = 0;
 			break;
-		} else {
-			aw_dev_info(aw_dev->dev, "check fail, cnt=%d, reg_val=0x%04x",
-					i, reg_val);
-			usleep_range(AW_2000_US, AW_2000_US + 10);
 		}
+		aw_dev_info(aw_dev->dev, "check fail, cnt=%d, reg_val=0x%04x",
+				i, reg_val);
+		usleep_range(AW_2000_US, AW_2000_US + 10);
 	}
 	if (ret < 0)
 		aw_dev_err(aw_dev->dev, "check fail");
@@ -754,17 +761,15 @@ int aw882xx_dev_init_cali_re(struct aw_device *aw_dev)
 								cali_desc->cali_re);
 				cali_desc->cali_re = AW_ERRO_CALI_VALUE;
 				/*cali_result is error when aw-cali-check enable*/
-				if (aw_dev->cali_desc.cali_check_st) {
+				if (aw_dev->cali_desc.cali_check_st)
 					cali_desc->cali_result = CALI_RESULT_ERROR;
-				}
 				return -EINVAL;
 			}
 
 			aw_dev_dbg(aw_dev->dev, "read re value: %d", cali_desc->cali_re);
 
-			if (aw_dev->cali_desc.cali_check_st) {
+			if (aw_dev->cali_desc.cali_check_st)
 				cali_desc->cali_result = CALI_RESULT_NORMAL;
-			}
 		}
 	} else {
 		aw_dev_info(aw_dev->dev, "no cali, needn't init cali re");
@@ -941,6 +946,7 @@ void aw_dev_i2s_enable(struct aw_device *aw_dev, bool flag)
 int aw882xx_device_start(struct aw_device *aw_dev)
 {
 	int ret;
+	struct aw_dither_desc *dither_desc = &aw_dev->dither_desc;
 
 	aw_dev_dbg(aw_dev->dev, "enter");
 
@@ -951,6 +957,8 @@ int aw882xx_device_start(struct aw_device *aw_dev)
 
 	/*set froce boost*/
 	aw_dev_boost_type_set(aw_dev);
+
+	aw_dev_set_dither(aw_dev, false);
 
 	/*power on*/
 	aw_dev_pwd(aw_dev, false);
@@ -987,17 +995,21 @@ int aw882xx_device_start(struct aw_device *aw_dev)
 	aw_dev_boost_type_recover(aw_dev);
 
 	/*enable tx feedback*/
-	aw_dev_i2s_enable(aw_dev, true);
+	if (aw_dev->txen_st)
+		aw_dev_i2s_enable(aw_dev, true);
 
-	if (aw_dev->amppd_st) {
+	if (aw_dev->amppd_st)
 		aw_dev_amppd(aw_dev, true);
-	}
 
 	if (aw_dev->ops.aw_reg_force_set)
 		aw_dev->ops.aw_reg_force_set(aw_dev);
 
 	/*close uls hmute*/
 	aw_dev_uls_hmute(aw_dev, false);
+
+	if (aw_dev->dither_st == dither_desc->enable)
+		aw_dev_set_dither(aw_dev, true);
+
 
 	if (!aw_dev->mute_st) {
 		/*close mute*/
@@ -1043,6 +1055,8 @@ int aw882xx_device_stop(struct aw_device *aw_dev)
 
 	/*set mute*/
 	aw882xx_dev_mute(aw_dev, true);
+
+	usleep_range(AW_5000_US, AW_5000_US + 10);
 
 	/*close tx feedback*/
 	aw_dev_i2s_enable(aw_dev, false);
@@ -1090,9 +1104,9 @@ static int aw_device_parse_sound_channel_dt(struct aw_device *aw_dev)
 	}
 
 	aw_dev_info(aw_dev->dev, "read sound-channel value is : %d", channel_value);
-	if (channel_value >= AW_DEV_CH_MAX) {
+	if (channel_value >= AW_DEV_CH_MAX)
 		channel_value = AW_DEV_CH_PRI_L;
-	}
+
 	/* when dev_num > 0, get dev list to compare*/
 	if (aw_dev->ops.aw_get_dev_num() > 0) {
 		ret = aw882xx_dev_get_list_head(&dev_list);
@@ -1117,6 +1131,19 @@ static int aw_device_parse_sound_channel_dt(struct aw_device *aw_dev)
 
 }
 
+void aw_device_parse_fade_flag_dt(struct aw_device *aw_dev)
+{
+	int ret;
+	uint32_t fade_en = 0;
+
+	ret = of_property_read_u32(aw_dev->dev->of_node, "fade-flag", &fade_en);
+	if (ret < 0)
+		aw_dev_info(aw_dev->dev, "read fade-flag failed,use default");
+
+	aw_dev->fade_en = fade_en;
+	aw_dev_info(aw_dev->dev, "fade-flag: %d", fade_en);
+}
+
 static int aw_device_parse_dt(struct aw_device *aw_dev)
 {
 	int ret = 0;
@@ -1128,6 +1155,7 @@ static int aw_device_parse_dt(struct aw_device *aw_dev)
 	}
 	aw882xx_device_parse_topo_id_dt(aw_dev);
 	aw882xx_device_parse_port_id_dt(aw_dev);
+	aw_device_parse_fade_flag_dt(aw_dev);
 
 	return ret;
 }

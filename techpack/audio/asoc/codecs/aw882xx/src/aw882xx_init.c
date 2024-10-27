@@ -1,10 +1,10 @@
-/*
- * aw_init.c   aw882xx codec module
+// SPDX-License-Identifier: GPL-2.0
+/* aw_init.c   aw882xx codec module
  *
  *
  * Copyright (c) 2019 AWINIC Technology CO., LTD
  *
- *  Author: Nick Li <liweilei@awinic.com.cn>
+ * Author: Nick Li <liweilei@awinic.com.cn>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
@@ -305,6 +305,11 @@ static int aw_pid_1852_dev_init(struct aw882xx *aw882xx)
 	aw_pa->soft_rst.reg = AW882XX_SOFT_RESET_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
 
+	aw_pa->dither_desc.reg = AW_PID_1852_TESTCTRL2_REG;
+	aw_pa->dither_desc.mask = AW_PID_1852_DITHER_MASK;
+	aw_pa->dither_desc.enable = AW_PID_1852_DITHER_ENABLE_VALUE;
+	aw_pa->dither_desc.disable = AW_PID_1852_DITHER_DISABLE_VALUE;
+
 	ret = aw882xx_device_probe(aw_pa);
 
 	aw882xx->aw_pa = aw_pa;
@@ -350,7 +355,7 @@ static int aw_pid_2013_set_volume(struct aw_device *aw_dev, unsigned int value)
 	return 0;
 }
 
-static int aw_pid_2013_get_volume(struct aw_device *aw_dev, unsigned int* value)
+static int aw_pid_2013_get_volume(struct aw_device *aw_dev, unsigned int *value)
 {
 	unsigned int reg_value = 0;
 	unsigned int real_value = 0;
@@ -488,7 +493,7 @@ static int aw_pid_2013_dev_init(struct aw882xx *aw882xx)
 	aw_pa->ops.aw_check_rd_access = aw_pid_2013_check_rd_access;
 	aw_pa->ops.aw_check_wr_access = aw_pid_2013_check_wr_access;
 	aw_pa->ops.aw_get_reg_num = aw_pid_2013_get_reg_num;
-	aw_pa->ops.aw_get_irq_type =aw_pid_2013_get_irq_type;
+	aw_pa->ops.aw_get_irq_type = aw_pid_2013_get_irq_type;
 
 	aw_pa->int_desc.mask_reg = AW_PID_2013_SYSINTM_REG;
 	aw_pa->int_desc.mask_default = AW_PID_2013_SYSINTM_DEFAULT;
@@ -586,6 +591,11 @@ static int aw_pid_2013_dev_init(struct aw882xx *aw882xx)
 
 	aw_pa->soft_rst.reg = AW882XX_SOFT_RESET_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
+
+	aw_pa->dither_desc.reg = AW_PID_2013_DBGCTRL_REG;
+	aw_pa->dither_desc.mask = AW_PID_2013_DITHER_MASK;
+	aw_pa->dither_desc.enable = AW_PID_2013_DITHER_ENABLE_VALUE;
+	aw_pa->dither_desc.disable = AW_PID_2013_DITHER_DISABLE_VALUE;
 
 	aw_pid_2013_efver_check(aw_pa);
 	ret = aw882xx_device_probe(aw_pa);
@@ -833,6 +843,11 @@ static int aw_pid_2032_dev_init(struct aw882xx *aw882xx)
 	aw_pa->soft_rst.reg = AW882XX_SOFT_RESET_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
 
+	aw_pa->dither_desc.reg = AW_PID_2032_DBGCTRL_REG;
+	aw_pa->dither_desc.mask = AW_PID_2032_DITHER_MASK;
+	aw_pa->dither_desc.enable = AW_PID_2032_DITHER_ENABLE_VALUE;
+	aw_pa->dither_desc.disable = AW_PID_2032_DITHER_DISABLE_VALUE;
+
 	ret = aw882xx_device_probe(aw_pa);
 
 	aw882xx->aw_pa = aw_pa;
@@ -893,15 +908,13 @@ static int aw_pid_2055a_get_volume(struct aw_device *aw_dev, unsigned int *value
 
 static bool aw_pid_2055a_check_rd_access(int reg)
 {
-	if (reg >= AW_PID_2055A_REG_MAX) {
+	if (reg >= AW_PID_2055A_REG_MAX)
 		return false;
-	}
 
-	if (aw_pid_2055a_reg_access[reg] & AW_PID_2055A_REG_RD_ACCESS) {
+	if (aw_pid_2055a_reg_access[reg] & AW_PID_2055A_REG_RD_ACCESS)
 		return true;
-	} else {
-		return false;
-	}
+
+	return false;
 }
 
 static bool aw_pid_2055a_check_wr_access(int reg)
@@ -912,8 +925,8 @@ static bool aw_pid_2055a_check_wr_access(int reg)
 	if (aw_pid_2055a_reg_access[reg] &
 			AW_PID_2055A_REG_WR_ACCESS)
 		return true;
-	else
-		return false;
+
+	return false;
 }
 
 static int aw_pid_2055a_get_reg_num(void)
@@ -957,6 +970,7 @@ static int aw_pid_2055a_dev_init(struct aw882xx *aw882xx)
 {
 	int ret = 0;
 	struct aw_device *aw_pa = aw882xx->aw_pa;
+
 	aw_pa->chip_id = PID_2055A_ID;
 
 	/*call aw device init func*/
@@ -985,7 +999,7 @@ static int aw_pid_2055a_dev_init(struct aw882xx *aw882xx)
 	aw_pa->ops.aw_check_rd_access = aw_pid_2055a_check_rd_access;
 	aw_pa->ops.aw_check_wr_access = aw_pid_2055a_check_wr_access;
 	aw_pa->ops.aw_get_reg_num = aw_pid_2055a_get_reg_num;
-	aw_pa->ops.aw_get_irq_type =aw_pid_2055a_get_irq_type;
+	aw_pa->ops.aw_get_irq_type = aw_pid_2055a_get_irq_type;
 
 	aw_pa->int_desc.mask_reg = AW_PID_2055A_SYSINTM_REG;
 	aw_pa->int_desc.mask_default = AW_PID_2055A_SYSINTM_DEFAULT;
@@ -1054,10 +1068,15 @@ static int aw_pid_2055a_dev_init(struct aw882xx *aw882xx)
 	aw_pa->soft_rst.reg = AW882XX_SOFT_RESET_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
 
-	usleep_range(AW_2000_US, AW_2000_US +10);
+	aw_pa->dither_desc.reg = AW_PID_2055A_DBGCTRL_REG;
+	aw_pa->dither_desc.mask = AW_PID_2055A_DITHER_MASK;
+	aw_pa->dither_desc.enable = AW_PID_2055A_DITHER_ENABLE_VALUE;
+	aw_pa->dither_desc.disable = AW_PID_2055A_DITHER_DISABLE_VALUE;
+
+	usleep_range(AW_2000_US, AW_2000_US + 10);
 	aw_pa->ops.aw_i2c_write(aw_pa, AW_PID_2055A_INIT_CHECK_REG,
 					AW_PID_2055A_INIT_CHECK_VALUE);
-	usleep_range(AW_3000_US, AW_3000_US +10);
+	usleep_range(AW_3000_US, AW_3000_US + 10);
 
 	ret = aw882xx_device_probe(aw_pa);
 
@@ -1120,15 +1139,13 @@ static int aw_pid_2055_get_volume(struct aw_device *aw_dev, unsigned int *value)
 
 static bool aw_pid_2055_check_rd_access(int reg)
 {
-	if (reg >= AW_PID_2055_REG_MAX) {
+	if (reg >= AW_PID_2055_REG_MAX)
 		return false;
-	}
 
-	if (aw_pid_2055_reg_access[reg] & AW_PID_2055_REG_RD_ACCESS) {
+	if (aw_pid_2055_reg_access[reg] & AW_PID_2055_REG_RD_ACCESS)
 		return true;
-	} else {
-		return false;
-	}
+
+	return false;
 }
 
 static bool aw_pid_2055_check_wr_access(int reg)
@@ -1139,8 +1156,8 @@ static bool aw_pid_2055_check_wr_access(int reg)
 	if (aw_pid_2055_reg_access[reg] &
 			AW_PID_2055_REG_WR_ACCESS)
 		return true;
-	else
-		return false;
+
+	return false;
 }
 
 static int aw_pid_2055_get_reg_num(void)
@@ -1211,7 +1228,7 @@ static int aw_pid_2055_dev_init(struct aw882xx *aw882xx)
 	aw_pa->ops.aw_check_rd_access = aw_pid_2055_check_rd_access;
 	aw_pa->ops.aw_check_wr_access = aw_pid_2055_check_wr_access;
 	aw_pa->ops.aw_get_reg_num = aw_pid_2055_get_reg_num;
-	aw_pa->ops.aw_get_irq_type =aw_pid_2055_get_irq_type;
+	aw_pa->ops.aw_get_irq_type = aw_pid_2055_get_irq_type;
 
 	aw_pa->int_desc.mask_reg = AW_PID_2055_SYSINTM_REG;
 	aw_pa->int_desc.mask_default = AW_PID_2055_SYSINTM_DEFAULT;
@@ -1291,10 +1308,15 @@ static int aw_pid_2055_dev_init(struct aw882xx *aw882xx)
 
 	aw_pa->efcheck_desc.reg = AW_REG_NONE;
 
-	usleep_range(AW_2000_US, AW_2000_US +10);
+	aw_pa->dither_desc.reg = AW_PID_2055_DBGCTRL_REG;
+	aw_pa->dither_desc.mask = AW_PID_2055_DITHER_MASK;
+	aw_pa->dither_desc.enable = AW_PID_2055_DITHER_ENABLE_VALUE;
+	aw_pa->dither_desc.disable = AW_PID_2055_DITHER_DISABLE_VALUE;
+
+	usleep_range(AW_2000_US, AW_2000_US + 10);
 	aw_pa->ops.aw_i2c_write(aw_pa, AW_PID_2055_INIT_CHECK_REG,
 					AW_PID_2055_INIT_CHECK_VALUE);
-	usleep_range(AW_3000_US, AW_3000_US +10);
+	usleep_range(AW_3000_US, AW_3000_US + 10);
 
 	ret = aw882xx_device_probe(aw_pa);
 
@@ -1314,8 +1336,8 @@ static int aw_pid_2055_dev_check(struct aw882xx *aw882xx)
 		return aw_pid_2055a_dev_init(aw882xx);
 	else if (reg_data == AW_PID_2055_VERSION_VALUE)
 		return aw_pid_2055_dev_init(aw882xx);
-	else
-		aw_dev_err(aw882xx->dev, "unsupported 2055 verison, 0x%04x", reg_data);
+
+	aw_dev_err(aw882xx->dev, "unsupported 2055 verison, 0x%04x", reg_data);
 
 	return -EINVAL;
 }
@@ -1555,6 +1577,11 @@ static int aw_pid_2071_dev_init(struct aw882xx *aw882xx)
 
 	aw_pa->bop_desc.reg = AW_REG_NONE;
 
+	aw_pa->dither_desc.reg = AW_PID_2071_DBGCTRL_REG;
+	aw_pa->dither_desc.mask = AW_PID_2071_DITHER_MASK;
+	aw_pa->dither_desc.enable = AW_PID_2071_DITHER_ENABLE_VALUE;
+	aw_pa->dither_desc.disable = AW_PID_2071_DITHER_DISABLE_VALUE;
+
 	aw_pa->soft_rst.reg = AW882XX_SOFT_RESET_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
 
@@ -1595,7 +1622,7 @@ static int aw_pid_2113_set_volume(struct aw_device *aw_dev, unsigned int value)
 	real_value = (real_value | (reg_value & 0xfc00));
 
 	/* write value */
-	aw882xx_i2c_write(aw882xx, AW_PID_2113_SYSCTRL2_REG, real_value);\
+	aw882xx_i2c_write(aw882xx, AW_PID_2113_SYSCTRL2_REG, real_value);
 
 	return 0;
 }
@@ -1732,7 +1759,7 @@ static void aw_pid_2113_reg_force_set(struct aw_device *aw_dev)
 		aw_dev->ops.aw_i2c_write_bits(aw_dev, AW_PID_2113_BSTCTRL9_REG,
 				AW_PID_2113_BST_BURST_MASK, AW_PID_2113_BST_BURST_30MA_VALUE);
 		aw_dev_dbg(aw_dev->dev, "force set reg done!");
-	}else {
+	} else {
 		aw_dev_info(aw_dev->dev, "needn't set reg value");
 	}
 }
@@ -1876,15 +1903,20 @@ static int aw_pid_2113_dev_init(struct aw882xx *aw882xx)
 	aw_pa->soft_rst.reg = AW882XX_SOFT_RESET_REG;
 	aw_pa->soft_rst.reg_value = AW882XX_SOFT_RESET_VALUE;
 
-	usleep_range(AW_2000_US, AW_2000_US +10);
+	usleep_range(AW_2000_US, AW_2000_US + 10);
 	aw_pa->ops.aw_i2c_write(aw_pa, AW_PID_2113_INIT_CHECK_REG,
 					AW_PID_2113_INIT_CHECK_VALUE);
-	usleep_range(AW_3000_US, AW_3000_US +10);
+	usleep_range(AW_3000_US, AW_3000_US + 10);
 
 	aw_pa->efcheck_desc.reg = AW_PID_2113_DBGCTRL_REG;
 	aw_pa->efcheck_desc.mask = AW_PID_2113_EF_DBMD_MASK;
 	aw_pa->efcheck_desc.and_val = AW_PID_2113_AND_VALUE;
 	aw_pa->efcheck_desc.or_val = AW_PID_2113_OR_VALUE;
+
+	aw_pa->dither_desc.reg = AW_PID_2113_DBGCTRL_REG;
+	aw_pa->dither_desc.mask = AW_PID_2113_DITHER_MASK;
+	aw_pa->dither_desc.enable = AW_PID_2113_DITHER_ENABLE_VALUE;
+	aw_pa->dither_desc.disable = AW_PID_2113_DITHER_DISABLE_VALUE;
 
 	ret = aw882xx_device_probe(aw_pa);
 
@@ -1894,7 +1926,7 @@ static int aw_pid_2113_dev_init(struct aw882xx *aw882xx)
 
 int aw882xx_init(struct aw882xx *aw882xx)
 {
-	switch(aw882xx->aw_pa->chip_id) {
+	switch (aw882xx->aw_pa->chip_id) {
 	case PID_1852_ID:
 		return aw_pid_1852_dev_init(aw882xx);
 	case PID_2013_ID:

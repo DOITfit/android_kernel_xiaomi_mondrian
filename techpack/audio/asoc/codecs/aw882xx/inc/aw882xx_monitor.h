@@ -1,3 +1,16 @@
+/* SPDX-License-Identifier: GPL-2.0
+ * aw882xx_monitor.h
+ *
+ * Copyright (c) 2020 AWINIC Technology CO., LTD
+ *
+ * Author: Nick Li <liweilei@awinic.com.cn>
+ *
+ * This program is free software; you can redistribute it and/or modify it
+ * under the terms of the GNU General Public License as published by the
+ * Free Software Foundation; either version 2 of the License, or (at your
+ * option) any later version.
+ */
+
 #ifndef __AW882XX_MONITOR_H__
 #define __AW882XX_MONITOR_H__
 
@@ -143,8 +156,8 @@ enum aw_monitor_mode {
 };
 
 /******************************************************************
-* struct aw882xx monitor
-*******************************************************************/
+ * struct aw882xx monitor
+ *******************************************************************/
 struct aw_monitor_desc {
 	struct delayed_work delay_work;
 	struct aw_monitor_cfg monitor_cfg;
@@ -166,8 +179,8 @@ struct aw_monitor_desc {
 };
 
 /******************************************************************
-* aw882xx monitor functions
-*******************************************************************/
+ * aw882xx monitor functions
+ *******************************************************************/
 void aw882xx_monitor_start(struct aw_monitor_desc *monitor_desc);
 int aw882xx_monitor_stop(struct aw_monitor_desc *monitor_desc);
 void aw882xx_monitor_init(struct aw_monitor_desc *monitor_desc);

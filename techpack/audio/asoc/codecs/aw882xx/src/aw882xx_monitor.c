@@ -1,15 +1,16 @@
-/*
- * aw_monitor.c monitor_module
+// SPDX-License-Identifier: GPL-2.0
+/* aw882xx_monitor.c monitor_module
  *
  * Copyright (c) 2019 AWINIC Technology CO., LTD
  *
- *  Author: Nick Li <liweilei@awinic.com.cn>
+ * Author: Nick Li <liweilei@awinic.com.cn>
  *
  * This program is free software; you can redistribute  it and/or modify it
  * under  the terms of  the GNU General  Public License as published by the
  * Free Software Foundation;  either version 2 of the  License, or (at your
  * option) any later version.
  */
+
 #include <linux/module.h>
 #include <linux/i2c.h>
 #include <sound/core.h>
@@ -87,7 +88,7 @@ static int aw_monitor_get_voltage(struct aw_device *aw_dev, unsigned int *vol)
 	uint16_t local_vol = 0;
 	struct aw_voltage_desc *desc = &aw_dev->voltage_desc;
 
-	if (true) {
+	if (desc->reg == AW_REG_NONE) {
 		ret = aw_monitor_get_data_form_system(aw_dev, (int *)vol, POWER_SUPPLY_PROP_VOLTAGE_NOW);
 		if (ret) {
 			aw_dev_err(aw_dev->dev, "get voltage from system failed!");
@@ -116,7 +117,7 @@ static int aw_monitor_get_temperature(struct aw_device *aw_dev, int *temp)
 	uint16_t local_temp;
 	struct aw_temperature_desc *desc = &aw_dev->temp_desc;
 
-	if (true) {
+	if (desc->reg == AW_REG_NONE) {
 		ret = aw_monitor_get_data_form_system(aw_dev, temp, POWER_SUPPLY_PROP_TEMP);
 		if (ret) {
 			aw_dev_err(aw_dev->dev, "get temperature from system failed!");
@@ -394,12 +395,15 @@ static void aw_monitor_set_vmax(struct aw_device *aw_dev,
 		return;
 	}
 
-	ret = aw882xx_dsp_write_vmax(aw_dev, (char *)&vmax, sizeof(uint32_t));
-	if (ret)
-		return;
-
 	aw_dev->monitor_desc.pre_vmax = vmax;
-	aw_dev_dbg(aw_dev->dev, "set vmax = 0x%x", vmax);
+
+	if (aw_dev->monitor_desc.monitor_mode == AW_MON_KERNEL_MODE) {
+		ret = aw882xx_dsp_write_vmax(aw_dev, (char *)&vmax, sizeof(uint32_t));
+		if (ret)
+			return;
+
+		aw_dev_dbg(aw_dev->dev, "set vmax = 0x%x", vmax);
+	}
 }
 
 static int aw_monitor_work(struct aw_device *aw_dev)
@@ -436,7 +440,6 @@ static int aw_monitor_work(struct aw_device *aw_dev)
 	aw_monitor_set_gain(aw_dev, set_table.gain);
 
 	aw_monitor_set_vmax(aw_dev, set_table.vmax);
-
 
 	monitor->samp_count = 0;
 	monitor->temp_trace.pre_val = monitor->temp_trace.sum_val;
@@ -532,9 +535,8 @@ int aw882xx_monitor_stop(struct aw_monitor_desc *monitor_desc)
 	aw_dev->volume_desc.monitor_volume = 0;
 	monitor_desc->mon_start_flag = false;
 
-	if (monitor_desc->monitor_mode == AW_MON_KERNEL_MODE) {
+	if (monitor_desc->monitor_mode == AW_MON_KERNEL_MODE)
 		cancel_delayed_work_sync(&monitor_desc->delay_work);
-	}
 
 	return 0;
 }
@@ -558,19 +560,13 @@ void aw882xx_monitor_hal_get_time(struct aw_monitor_desc *monitor_desc, uint32_t
 			struct aw_device, monitor_desc);
 	struct aw_monitor_cfg *monitor_cfg = &aw_dev->monitor_desc.monitor_cfg;
 
-	if (!monitor_cfg->monitor_switch) {
-		aw_dev_info(aw_dev->dev, "monitor is disable");
-		*time = 0;
-		return;
-	}
-
 	*time = monitor_cfg->monitor_time;
 }
 
 
 /*****************************************************
-* load monitor config
-*****************************************************/
+ * load monitor config
+ *****************************************************/
 static int aw_monitor_param_check_sum(struct aw_device *aw_dev,
 					uint8_t *data, uint32_t data_len)
 {
@@ -1024,9 +1020,8 @@ static int aw_monitor_real_time_update_monitor(struct aw_device *aw_dev)
 	aw_monitor_cnt = devm_kzalloc(aw_dev->dev,
 			cont->size + sizeof(uint32_t), GFP_KERNEL);
 	if (aw_monitor_cnt == NULL) {
-		aw_dev_err(aw_dev->dev, "alloc failed!");
 		release_firmware(cont);
-		return ret;
+		return -ENOMEM;
 	}
 
 	aw_monitor_cnt->len = cont->size;
@@ -1048,7 +1043,7 @@ static int aw_monitor_real_time_update_monitor(struct aw_device *aw_dev)
  * monitor init
  *****************************************************/
 #ifdef AW_DEBUG
-static ssize_t aw_vol_store(struct device *dev,
+static ssize_t vol_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	int ret = -1;
@@ -1069,7 +1064,7 @@ static ssize_t aw_vol_store(struct device *dev,
 	return count;
 }
 
-static ssize_t aw_vol_show(struct device *dev,
+static ssize_t vol_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct aw882xx *aw882xx = dev_get_drvdata(dev);
@@ -1082,7 +1077,7 @@ static ssize_t aw_vol_show(struct device *dev,
 	return len;
 }
 
-static ssize_t aw_temp_store(struct device *dev,
+static ssize_t temp_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	int ret = -1;
@@ -1104,7 +1099,7 @@ static ssize_t aw_temp_store(struct device *dev,
 	return count;
 }
 
-static ssize_t aw_temp_show(struct device *dev,
+static ssize_t temp_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct aw882xx *aw882xx = dev_get_drvdata(dev);
@@ -1118,13 +1113,11 @@ static ssize_t aw_temp_show(struct device *dev,
 	return len;
 }
 
-static DEVICE_ATTR(vol, S_IWUSR | S_IRUGO,
-	aw_vol_show, aw_vol_store);
-static DEVICE_ATTR(temp, S_IWUSR | S_IRUGO,
-	aw_temp_show, aw_temp_store);
+static DEVICE_ATTR_RW(vol);
+static DEVICE_ATTR_RW(temp);
 #endif
 
-static ssize_t aw_monitor_store(struct device *dev,
+static ssize_t monitor_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	int ret = -1;
@@ -1141,18 +1134,17 @@ static ssize_t aw_monitor_store(struct device *dev,
 
 	aw_dev_info(aw_dev->dev, "monitor enable set =%d", enable);
 
-	if (aw_dev->monitor_desc.monitor_cfg.monitor_switch == enable) {
+	if (aw_dev->monitor_desc.monitor_cfg.monitor_switch == enable)
 		return count;
-	} else {
-		aw_dev->monitor_desc.monitor_cfg.monitor_switch = enable;
-		if (enable)
-			aw882xx_monitor_start(&aw_dev->monitor_desc);
-	}
+
+	aw_dev->monitor_desc.monitor_cfg.monitor_switch = enable;
+	if (enable)
+		aw882xx_monitor_start(&aw_dev->monitor_desc);
 
 	return count;
 }
 
-static ssize_t aw_monitor_show(struct device *dev,
+static ssize_t monitor_show(struct device *dev,
 	struct device_attribute *attr, char *buf)
 {
 	struct aw882xx *aw882xx = dev_get_drvdata(dev);
@@ -1165,7 +1157,7 @@ static ssize_t aw_monitor_show(struct device *dev,
 	return len;
 }
 
-static ssize_t aw_monitor_update_store(struct device *dev,
+static ssize_t monitor_update_store(struct device *dev,
 	struct device_attribute *attr, const char *buf, size_t count)
 {
 	int ret = -1;
@@ -1194,10 +1186,8 @@ static ssize_t aw_monitor_update_store(struct device *dev,
 	return count;
 }
 
-static DEVICE_ATTR(monitor, S_IWUSR | S_IRUGO,
-	aw_monitor_show, aw_monitor_store);
-static DEVICE_ATTR(monitor_update, S_IWUSR,
-	NULL, aw_monitor_update_store);
+static DEVICE_ATTR_RW(monitor);
+static DEVICE_ATTR_WO(monitor_update);
 
 static struct attribute *aw_monitor_attr[] = {
 	&dev_attr_monitor.attr,
@@ -1215,7 +1205,7 @@ static struct attribute_group aw_monitor_attr_group = {
 
 static void aw_monitor_parse_mode(struct aw_device *aw_dev)
 {
-	int ret;
+	int ret = 0;
 	const char *mon_mode_str = NULL;
 	struct aw_monitor_desc *monitor = &aw_dev->monitor_desc;
 
@@ -1232,7 +1222,7 @@ static void aw_monitor_parse_mode(struct aw_device *aw_dev)
 	else
 		monitor->monitor_mode = AW_MON_KERNEL_MODE;
 
-	aw_dev_dbg(aw_dev->dev, "read monitor-mode value is : %d", monitor->monitor_mode);
+	aw_dev_info(aw_dev->dev, "read monitor-mode value is : %d", monitor->monitor_mode);
 }
 
 void aw882xx_monitor_init(struct aw_monitor_desc *monitor_desc)
