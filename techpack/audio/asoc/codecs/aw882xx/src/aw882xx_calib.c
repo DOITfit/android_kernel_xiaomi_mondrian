@@ -54,7 +54,7 @@ static DEFINE_MUTEX(g_cali_lock);
 #ifdef AW_CALI_STORE_EXAMPLE
  /*write cali to persist file example*/
 #define AWINIC_CALI_FILE "aw_cali.bin"
-#define AW_INT_DEC_DIGIT 10
+#define AW_INT_DEC_DIGIT 4
 
 static int aw_cali_write_cali_re_to_file(int32_t cali_re, int channel)
 {
