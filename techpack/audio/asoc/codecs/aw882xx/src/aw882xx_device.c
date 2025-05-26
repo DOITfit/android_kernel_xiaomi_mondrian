@@ -1114,6 +1114,11 @@ int aw882xx_dev_init_cali_re(struct aw_device *aw_dev)
 	int ret = 0;
 	struct aw_cali_desc *cali_desc = &aw_dev->cali_desc;
 
+	if (atomic_read(&cali_desc->cali_re_initialized)) {
+		aw_dev_dbg(aw_dev->dev, "cali_re has already been initialized");
+		return 0;
+	}
+
 	if (cali_desc->mode) {
 		if (cali_desc->cali_re == AW_ERRO_CALI_VALUE) {
 			ret = aw882xx_cali_read_re_from_nvram(
@@ -1122,6 +1127,7 @@ int aw882xx_dev_init_cali_re(struct aw_device *aw_dev)
 				aw_dev_info(aw_dev->dev, "read nvram cali failed, use default Re");
 				cali_desc->cali_re = AW_ERRO_CALI_VALUE;
 				cali_desc->cali_result = CALI_RESULT_NONE;
+				atomic_set(&cali_desc->cali_re_initialized, 1);
 				return 0;
 			}
 
@@ -1133,6 +1139,7 @@ int aw882xx_dev_init_cali_re(struct aw_device *aw_dev)
 				/*cali_result is error when aw-cali-check enable*/
 				if (aw_dev->cali_desc.cali_check_st)
 					cali_desc->cali_result = CALI_RESULT_ERROR;
+				atomic_set(&cali_desc->cali_re_initialized, 1);
 				return -EINVAL;
 			}
 
@@ -1144,6 +1151,7 @@ int aw882xx_dev_init_cali_re(struct aw_device *aw_dev)
 	} else {
 		aw_dev_info(aw_dev->dev, "no cali, needn't init cali re");
 	}
+	atomic_set(&cali_desc->cali_re_initialized, 1);
 	return ret;
 }
 
