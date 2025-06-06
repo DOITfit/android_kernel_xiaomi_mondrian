@@ -2125,9 +2125,15 @@ static void aw882xx_parse_sync_load_dt(struct aw882xx *aw882xx)
 
 	ret = of_property_read_u32(np, "sync-load", &sync_load);
 	if (ret < 0) {
+#if defined (AW_QCOM_PLATFORM) || defined(AW_AUDIOREACH_PLATFORM)
 		aw_dev_info(aw882xx->dev,
-			"read sync load failed,default async loading fw");
-		sync_load = false;
+			"read sync load failed, default sync loading fw");
+		sync_load = 1;
+#else
+		aw_dev_info(aw882xx->dev,
+			"read sync load failed, default async loading fw");
+		sync_load = 0;
+#endif
 	} else {
 		aw_dev_info(aw882xx->dev,
 			"sync load is %d", sync_load);
