@@ -1445,11 +1445,11 @@ static int aw_dev_parse_sound_channel_dt(struct aw_device *aw_dev)
 void aw_dev_parse_fade_flag_dt(struct aw_device *aw_dev)
 {
 	int ret;
-	uint32_t fade_en = 0;
+	uint32_t fade_en = 1;
 
 	ret = of_property_read_u32(aw_dev->dev->of_node, "fade-flag", &fade_en);
 	if (ret < 0)
-		aw_dev_info(aw_dev->dev, "read fade-flag failed,use default");
+		aw_dev_info(aw_dev->dev, "read fade-flag failed, default enable");
 
 
 	aw_dev->fade_en = fade_en;
