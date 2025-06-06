@@ -40,6 +40,7 @@ static DEFINE_MUTEX(g_aw_dsp_lock);
 #define AW_MSG_ID_VERSION		(0x00000008)
 #define AW_MSG_ID_AUDIO_MIX		(0x0000000B)
 #define AW_MSG_ID_VERSION_NEW		(0x00000012)
+#define AW_MSG_ID_VOLTAGE_OFFSET	(0x0000001F)
 
 /*dsp params id*/
 #define AW_MSG_ID_RX_SET_ENABLE		(0x10013D11)
@@ -65,7 +66,7 @@ static DEFINE_MUTEX(g_aw_dsp_lock);
 
 #define AW_MSG_ID_PARAMS		(0x10013D12)
 #define AW_MSG_ID_PARAMS_1		(0x10013D2D)
-#define AW_MSG_ID_PARAMS_2		(0x10013D32)
+#define AW_MSG_ID_PARAMS_2		(0x10013D41)
 #define AW_MSG_ID_PARAMS_3		(0x10013D35)
 #define AW_MSG_ID_PARAMS_DEFAULT	(0x10013D37)
 
@@ -145,6 +146,7 @@ extern void aw_set_port_id(int tx_port_id, int rx_port_id);
 #else
 static void aw_set_port_id(int tx_port_id, int rx_port_id)
 {
+
 }
 #endif
 
@@ -251,6 +253,7 @@ static int aw_mtk_write_data_to_dsp(int param_id, void *data, int size)
 	dsp_data = kzalloc(sizeof(aw_dsp_msg_t) + size, GFP_KERNEL);
 	if (!dsp_data)
 		return -ENOMEM;
+
 
 	hdr = (aw_dsp_msg_t *)dsp_data;
 	hdr->type = AW_DSP_MSG_TYPE_DATA;
@@ -1000,6 +1003,43 @@ int aw882xx_dsp_write_cali_re(struct aw_device *aw_dev, int32_t cali_re)
 	return ret;
 }
 
+int aw882xx_dsp_read_vol_offset(struct aw_device *aw_dev,
+												int32_t *voltage_offset)
+{
+	int ret = 0;
+	unsigned char msg_id = -1;
+
+	msg_id = AW_MSG_ID_VOLTAGE_OFFSET;
+	ret = aw_read_msg_from_dsp_v_1_0_0_0(aw_dev, msg_id, (char *)voltage_offset,
+							sizeof(int32_t), AW_DSP_CHANNEL_DEFAULT_NUM);
+	if (ret) {
+		aw_dev_err(aw_dev->dev, "read voltage offset failed %d", ret);
+		return ret;
+	}
+
+	aw_dev_dbg(aw_dev->dev, "read voltage offset done");
+	return ret;
+}
+
+
+int aw882xx_dsp_write_vol_offset(struct aw_device *aw_dev,
+												int32_t voltage_offset)
+{
+	int ret = 0;
+	uint32_t msg_id = 0;
+
+	msg_id = AW_MSG_ID_VOLTAGE_OFFSET;
+	ret = aw_write_msg_to_dsp_v_1_0_0_0(aw_dev, msg_id, (char *)&voltage_offset,
+							sizeof(int32_t), AW_DSP_CHANNEL_DEFAULT_NUM);
+	if (ret) {
+		aw_dev_err(aw_dev->dev, "write voltage offset failed %d", ret);
+		return ret;
+	}
+
+	aw_dev_dbg(aw_dev->dev, "write %d voltage offset done", voltage_offset);
+	return ret;
+}
+
 int aw882xx_dsp_write_params(struct aw_device *aw_dev, char *data, unsigned int data_len)
 {
 	int ret = 0;
@@ -1240,7 +1280,7 @@ int aw882xx_dsp_set_mixer_en(struct aw_device *aw_dev, uint32_t mixer_en)
 
 }
 
-int aw882xx_get_algo_version(struct aw_device *aw_dev, char *algo_ver_buf)
+int aw882xx_dsp_algo_ver(struct aw_device *aw_dev, char *algo_ver_buf)
 {
 	int ret = 0;
 	unsigned int algo_ver = 0;
@@ -1263,7 +1303,7 @@ int aw882xx_get_algo_version(struct aw_device *aw_dev, char *algo_ver_buf)
 	return ret;
 }
 
-void aw882xx_device_parse_topo_id_dt(struct aw_device *aw_dev)
+void aw882xx_dsp_parse_topo_id_dt(struct aw_device *aw_dev)
 {
 	int ret = 0;
 
@@ -1283,7 +1323,7 @@ void aw882xx_device_parse_topo_id_dt(struct aw_device *aw_dev)
 						g_tx_topo_id, g_rx_topo_id);
 }
 
-void aw882xx_device_parse_port_id_dt(struct aw_device *aw_dev)
+void aw882xx_dsp_parse_port_id_dt(struct aw_device *aw_dev)
 {
 	int ret = 0;
 

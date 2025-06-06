@@ -40,7 +40,6 @@
 						SNDRV_PCM_FMTBIT_S24_LE | \
 						SNDRV_PCM_FMTBIT_S32_LE)
 /*#define AW882XX_IRQ_START_FLAG*/
-
 enum {
 	AW882XX_STREAM_CLOSE = 0,
 	AW882XX_STREAM_OPEN,
@@ -54,6 +53,7 @@ enum aw882xx_chipid {
 	PID_2055A_ID = 0x2055A,
 	PID_2071_ID = 0x2071,
 	PID_2113_ID = 0x2113,
+	PID_2116_ID = 0x2116,
 	PID_2308_ID = 0x2308,
 };
 
@@ -83,6 +83,10 @@ MODULE_IMPORT_NS(VFS_internal_I_am_really_a_filesystem_and_am_NOT_a_driver);
 #endif
 #if KERNEL_VERSION(6, 1, 0) <= LINUX_VERSION_CODE
 #define AW_KERNEL_VER_OVER_6_1_0
+#endif
+
+#if KERNEL_VERSION(6, 6, 0) <= LINUX_VERSION_CODE
+#define AW_KERNEL_VER_OVER_6_6_0
 #endif
 
 #ifdef AW_KERNEL_VER_OVER_4_19_1
@@ -122,6 +126,8 @@ enum {
 	KCTL_TYPE_MONITOR,
 	KCTL_TYPE_VOLUME,
 	KCTL_TYPE_MON_HAL,
+	KCTL_TYPE_VOLTAGE_OFFSET,
+	KCTL_TYPE_IV_OUTPUT,
 	AW_KCTL_NUM,
 
 };
@@ -185,12 +191,6 @@ struct aw882xx {
 
 	int reset_gpio;
 	int irq_gpio;
-
-#ifndef CONFIG_TARGET_PRODUCT_ZIYI
-	int spksw_gpio;
-	int spksw_level;
-#endif
-
 	unsigned char fw_status;
 	unsigned char fw_retry_cnt;
 	unsigned char rw_reg_addr;	/* rw attr node store read addr */
@@ -210,19 +210,9 @@ struct aw882xx {
 	struct delayed_work fw_work;
 
 	struct mutex lock;
-	int dsm_state;
 };
 
-void aw882xx_kcontorl_set(struct aw882xx *aw882xx);
-int aw882xx_get_version(char *buf, int size);
-int aw882xx_get_dev_num(void);
-int aw882xx_i2c_write(struct aw882xx *aw882xx,
-	unsigned char reg_addr, unsigned int reg_data);
-int aw882xx_i2c_read(struct aw882xx *aw882xx,
-	unsigned char reg_addr, unsigned int *reg_data);
-int aw882xx_i2c_write_bits(struct aw882xx *aw882xx,
-	unsigned char reg_addr, unsigned int mask, unsigned int reg_data);
-int aw882xx_init(struct aw882xx *aw882xx);
+int aw882xx_init(struct aw_device *aw_pa);
 int aw882xx_hw_reset(struct aw882xx *aw882xx);
 
 

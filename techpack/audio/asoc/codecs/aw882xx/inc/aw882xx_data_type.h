@@ -35,6 +35,7 @@ struct aw_msg_hdr {
 #define AW_INIT_PROFILE (0)
 
 #define ACF_FILE_ID (0xa15f908)
+#define AW_SCENE_MAX_NUM (16)
 
 
 enum aw_cfg_hdr_version {

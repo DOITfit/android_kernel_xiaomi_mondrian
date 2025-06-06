@@ -209,6 +209,7 @@ struct aw_monitor_desc {
 	struct aw_monitor_trace temp_trace;
 	struct aw_monitor_trace vol_trace;
 
+
 #ifdef AW_DEBUG
 	uint16_t test_vol;
 	int16_t test_temp;
@@ -227,6 +228,7 @@ int aw882xx_monitor_parse_fw(struct aw_monitor_desc *monitor_desc,
 
 void aw882xx_monitor_hal_work(struct aw_monitor_desc *monitor_desc, uint32_t *vmax);
 void aw882xx_monitor_hal_get_time(struct aw_monitor_desc *monitor_desc, uint32_t *time);
+
 
 #endif
 

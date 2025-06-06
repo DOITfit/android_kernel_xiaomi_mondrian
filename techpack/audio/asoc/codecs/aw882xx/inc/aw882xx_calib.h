@@ -181,14 +181,12 @@ struct aw_cali_desc {
 	int32_t cali_q;			/*store cali q*/
 	int8_t cali_result;
 	uint8_t cali_check_st;
-	atomic_t cali_re_initialized;
 };
 
 int aw882xx_cali_init(struct aw_cali_desc *cali_desc);
 void aw882xx_cali_deinit(struct aw_cali_desc *cali_desc);
 int aw882xx_cali_svc_get_cali_status(void);
-int aw882xx_cali_read_re_from_nvram(struct aw_device *aw_dev, int32_t *cali_re,
-				    int32_t ch_index);
+int aw882xx_cali_read_re_from_nvram(int32_t *cali_re, int32_t ch_index);
 bool aw882xx_cali_check_result(struct aw_cali_desc *cali_desc);
 
 

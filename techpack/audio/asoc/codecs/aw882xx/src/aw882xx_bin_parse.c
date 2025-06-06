@@ -41,7 +41,7 @@
 
 #define AWINIC_CODE_VERSION "V0.0.7-V1.0.4"	/* "code version"-"excel version" */
 
-// #define DEBUG_LOG_LEVEL
+#define DEBUG_LOG_LEVEL
 #ifdef DEBUG_LOG_LEVEL
 #define DBG(fmt, arg...) \
 	pr_debug("AWINIC_BIN %s,line= %d,"fmt, __func__, __LINE__, ##arg)
@@ -107,6 +107,7 @@ int aw_check_data_version(struct aw_bin *bin, int bin_num)
 	for (i = DATA_VERSION_V1; i < DATA_VERSION_MAX; i++) {
 		if (bin->header_info[bin_num].bin_data_ver == i)
 			return 0;
+
 	}
 	DBG_ERR("aw_bin_parse Unrecognized this bin data version\n");
 	return -EINVAL;
@@ -325,6 +326,7 @@ int aw_get_multi_bin_header_1_0_0(struct aw_bin *bin)
 		ret = aw_parse_each_of_multi_bins_1_0_0(bin_num, i, bin);
 		if (ret < 0)
 			return ret;
+
 	}
 	return 0;
 }
@@ -779,7 +781,7 @@ static int aw_dev_parse_dev_type(struct aw_device *aw_dev,
 	struct aw_cfg_dde *cfg_dde =
 		(struct aw_cfg_dde *)((char *)prof_hdr + prof_hdr->a_hdr_offset);
 
-	aw_dev_dbg(aw_dev->dev, "enter");
+	aw_dev_info(aw_dev->dev, "enter");
 
 	for (i = 0; i < prof_hdr->a_ddt_num; i++) {
 		if ((aw_dev->i2c->adapter->nr == cfg_dde[i].dev_bus) &&
@@ -821,7 +823,7 @@ static int aw_dev_parse_dev_default_type(struct aw_device *aw_dev,
 	struct aw_cfg_dde *cfg_dde =
 		(struct aw_cfg_dde *)((char *)prof_hdr + prof_hdr->a_hdr_offset);
 
-	aw_dev_dbg(aw_dev->dev, "enter");
+	aw_dev_info(aw_dev->dev, "enter");
 
 	for (i = 0; i < prof_hdr->a_ddt_num; i++) {
 		if ((aw_dev->channel == cfg_dde[i].dev_index) &&
@@ -861,7 +863,7 @@ static int aw_dev_parse_skt_type(struct aw_device *aw_dev,
 	struct aw_cfg_dde *cfg_dde =
 		(struct aw_cfg_dde *)((char *)prof_hdr + prof_hdr->a_hdr_offset);
 
-	aw_dev_dbg(aw_dev->dev, "enter");
+	aw_dev_info(aw_dev->dev, "enter");
 
 	for (i = 0; i < prof_hdr->a_ddt_num; i++) {
 		if ((aw_dev->channel == cfg_dde[i].dev_index) &&
@@ -1078,61 +1080,62 @@ static int aw_dev_parse_drv_type_v_1_0_0_0(struct aw_device *aw_dev,
 	return ret;
 }
 
-static int aw_dev_parse_dev_type_v_1_0_0_0(struct aw_device *aw_dev,
-		struct aw_cfg_hdr *prof_hdr)
+static int aw_dev_parse_scene_v_1_0_0_0(struct aw_device *aw_dev,
+		struct aw_cfg_hdr *prof_hdr, int is_default)
 {
 	int i = 0;
 	int ret = -1;
 	int cur_scene_id = 0;
+	uint32_t valid_ddt_count = 0;
+	uint32_t valid_ddt_table[AW_SCENE_MAX_NUM * 2] = {0};
 	struct aw_cfg_dde_v_1_0_0_0 *cfg_dde =
 		(struct aw_cfg_dde_v_1_0_0_0 *)((char *)prof_hdr + prof_hdr->a_hdr_offset);
 
-	aw_dev_dbg(aw_dev->dev, "enter");
+	aw_dev_info(aw_dev->dev, "enter");
 
 	for (i = 0; i < prof_hdr->a_ddt_num; i++) {
-		if ((cfg_dde[i].type == AW_DEV_TYPE_ID) &&
-		    (aw_dev->i2c->adapter->nr == cfg_dde[i].dev_bus) &&
-		    (aw_dev->i2c->addr == cfg_dde[i].dev_addr) &&
-		    (aw_dev->chip_id == cfg_dde[i].chip_id)) {
-			ret = aw_dev_parse_drv_type_v_1_0_0_0(aw_dev,
-					prof_hdr, &cfg_dde[i], &cur_scene_id);
-			if (ret < 0)
-				return ret;
+		if ((is_default &&
+			(cfg_dde[i].type == AW_DEV_DEFAULT_TYPE_ID) &&
+			(aw_dev->channel == cfg_dde[i].dev_index) &&
+			(aw_dev->chip_id == cfg_dde[i].chip_id)) ||
+			(!is_default &&
+			(cfg_dde[i].type == AW_DEV_TYPE_ID) &&
+			(aw_dev->i2c->adapter->nr == cfg_dde[i].dev_bus) &&
+			(aw_dev->i2c->addr == cfg_dde[i].dev_addr) &&
+			(aw_dev->chip_id == cfg_dde[i].chip_id))) {
+			int j = 0;
+			int k = 0;
+
+			if (!valid_ddt_count) {
+				valid_ddt_table[valid_ddt_count++] = i;
+				continue;
+			}
+
+			for (j = 0; j < valid_ddt_count; j++) {
+				if (cfg_dde[i].dev_profile > cfg_dde[valid_ddt_table[j]].dev_profile)
+					continue;
+
+				valid_ddt_count++;
+				for (k = 0; k < valid_ddt_count - 1 - j; k++)
+					valid_ddt_table[valid_ddt_count - k - 1] = valid_ddt_table[valid_ddt_count - k - 2];
+				valid_ddt_table[j] = i;
+				break;
+			}
+
+			if (j == valid_ddt_count)
+				valid_ddt_table[valid_ddt_count++] = i;
 		}
 	}
 
-	if (cur_scene_id == 0) {
-		aw_dev_info(aw_dev->dev, "get dev type num is %d", cur_scene_id);
-		return -EINVAL;
-	}
-
-	return 0;
-}
-
-static int aw_dev_parse_dev_default_type_v_1_0_0_0(struct aw_device *aw_dev,
-		struct aw_cfg_hdr *prof_hdr)
-{
-	int i = 0;
-	int ret;
-	int cur_scene_id = 0;
-	struct aw_cfg_dde_v_1_0_0_0 *cfg_dde =
-		(struct aw_cfg_dde_v_1_0_0_0 *)((char *)prof_hdr + prof_hdr->a_hdr_offset);
-
-	aw_dev_dbg(aw_dev->dev, "enter");
-
-	for (i = 0; i < prof_hdr->a_ddt_num; i++) {
-		if ((cfg_dde[i].type == AW_DEV_DEFAULT_TYPE_ID) &&
-		    (aw_dev->channel == cfg_dde[i].dev_index) &&
-		    (aw_dev->chip_id == cfg_dde[i].chip_id)) {
-			ret = aw_dev_parse_drv_type_v_1_0_0_0(aw_dev,
-					prof_hdr, &cfg_dde[i], &cur_scene_id);
-			if (ret < 0)
-				return ret;
-		}
+	for (i = 0; i < valid_ddt_count; i++) {
+		ret = aw_dev_parse_drv_type_v_1_0_0_0(aw_dev,
+				prof_hdr, &cfg_dde[valid_ddt_table[i]], &cur_scene_id);
+		if (ret < 0)
+			return ret;
 	}
 
 	if (cur_scene_id == 0) {
-		aw_dev_err(aw_dev->dev, "get dev default type failed, get num[%d]", cur_scene_id);
+		aw_dev_err(aw_dev->dev, "no valid device scenario resolved");
 		return -EINVAL;
 	}
 
@@ -1176,7 +1179,7 @@ static int aw_dev_parse_skt_type_v_1_0_0_0(struct aw_device *aw_dev,
 	struct aw_cfg_dde_v_1_0_0_0 *cfg_dde =
 		(struct aw_cfg_dde_v_1_0_0_0 *)((char *)prof_hdr + prof_hdr->a_hdr_offset);
 
-	aw_dev_dbg(aw_dev->dev, "enter");
+	aw_dev_info(aw_dev->dev, "enter");
 
 	for (i = 0; i < prof_hdr->a_ddt_num; i++) {
 		if ((cfg_dde[i].type == AW_SKT_TYPE_ID) &&
@@ -1208,15 +1211,9 @@ static int aw_dev_parse_by_hdr_v_1_0_0_0(struct aw_device *aw_dev,
 {
 	int ret;
 
-	if (is_default) {
-		ret = aw_dev_parse_dev_default_type_v_1_0_0_0(aw_dev, cfg_hdr);
-		if (ret < 0)
-			return ret;
-	} else {
-		ret = aw_dev_parse_dev_type_v_1_0_0_0(aw_dev, cfg_hdr);
-		if (ret < 0)
-			return ret;
-	}
+	ret = aw_dev_parse_scene_v_1_0_0_0(aw_dev, cfg_hdr, is_default);
+	if (ret < 0)
+		return ret;
 
 	ret = aw_dev_parse_skt_type_v_1_0_0_0(aw_dev, cfg_hdr);
 	if (ret < 0)
@@ -1266,7 +1263,7 @@ int aw882xx_dev_parse_acf(struct aw_device *aw_dev, struct aw_container *aw_cfg)
 	struct aw_cfg_hdr *cfg_hdr = NULL;
 	int ret;
 
-	aw_dev_dbg(aw_dev->dev, "enter");
+	aw_dev_info(aw_dev->dev, "enter");
 
 	cfg_hdr = (struct aw_cfg_hdr *)aw_cfg->data;
 	switch (cfg_hdr->a_hdr_version) {
@@ -1373,8 +1370,6 @@ struct aw_sec_data_desc *aw882xx_dev_get_prof_data(struct aw_device *aw_dev, int
 int aw882xx_dev_set_profile_index(struct aw_device *aw_dev, int index)
 {
 	struct aw_prof_info *prof_info = &aw_dev->prof_info;
-	struct mutex *ext_dsp_prof_wr_lock = NULL;
-	char *ext_dsp_prof_write = NULL;
 
 	if (index >= prof_info->count || index < 0)
 		return -EINVAL;
@@ -1382,13 +1377,6 @@ int aw882xx_dev_set_profile_index(struct aw_device *aw_dev, int index)
 	aw_dev->set_prof = index;
 	aw_dev_info(aw_dev->dev, "set prof[%s]",
 		prof_info->prof_name_list[prof_info->prof_desc[index].id]);
-
-	ext_dsp_prof_wr_lock = aw882xx_dev_get_ext_dsp_prof_wr_lock();
-	ext_dsp_prof_write = aw882xx_dev_get_ext_dsp_prof_write();
-
-	mutex_lock(ext_dsp_prof_wr_lock);
-	*ext_dsp_prof_write = AW_EXT_DSP_WRITE_NONE;
-	mutex_unlock(ext_dsp_prof_wr_lock);
 
 	return 0;
 }

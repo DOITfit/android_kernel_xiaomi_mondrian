@@ -28,8 +28,8 @@
 #include "aw882xx.h"
 #include "aw882xx_spin.h"
 
-static unsigned int g_spin_mode = 0;
-static unsigned int g_spin_value = 0;
+static unsigned int g_spin_mode;
+static unsigned int g_spin_value;
 
 static DEFINE_MUTEX(g_spin_lock);
 
@@ -39,7 +39,7 @@ int aw_dev_set_channal_mode(struct aw_device *aw_dev,
 	int ret;
 	struct aw_reg_ch *rx_desc = &spin_desc.rx_desc;
 
-	ret = aw_dev->ops.aw_i2c_write_bits(aw_dev, rx_desc->reg, rx_desc->mask,
+	ret = aw_dev->ops.aw_i2c_write_bits(aw_dev->i2c, rx_desc->reg, rx_desc->mask,
 					spin_desc.spin_table[spin_val].rx_val);
 	if (ret < 0) {
 		aw_dev_err(aw_dev->dev, "set rx failed");
@@ -112,11 +112,11 @@ int aw882xx_spin_set_record_val(struct aw_device *aw_dev)
 			return ret;
 		}
 	} else {
-		aw_dev_dbg(aw_dev->dev, "do nothing");
+		aw_dev_info(aw_dev->dev, "do nothing");
 	}
 	mutex_unlock(&g_spin_lock);
 
-	aw_dev_dbg(aw_dev->dev, "set record spin val done");
+	aw_dev_info(aw_dev->dev, "set record spin val done");
 	return 0;
 }
 
