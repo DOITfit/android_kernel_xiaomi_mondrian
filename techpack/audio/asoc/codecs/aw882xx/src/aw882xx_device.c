@@ -417,7 +417,7 @@ static int aw_dev_set_vcalb(struct aw_device *aw_dev)
 
 	ret =  aw_dev->ops.aw_i2c_write(aw_dev->i2c, desc->vcalb_reg, reg_val);
 
-	aw_dev_info(aw_dev->dev, "done");
+	aw_dev_dbg(aw_dev->dev, "done");
 
 	return ret;
 }
@@ -656,7 +656,7 @@ static void aw_dev_switch(struct aw_device *aw_dev, struct aw_switch_desc *btn, 
 				btn->mask,
 				btn->disable);
 	}
-	aw_dev_info(aw_dev->dev, "%s set %d done", btn->name, enable);
+	aw_dev_dbg(aw_dev->dev, "%s set %d done", btn->name, enable);
 }
 
 static int aw_dev_mode1_pll_check(struct aw_device *aw_dev)
@@ -680,7 +680,7 @@ static int aw_dev_mode1_pll_check(struct aw_device *aw_dev)
 	if (ret < 0)
 		aw_dev_err(aw_dev->dev, "pll&clk check fail");
 	else
-		aw_dev_info(aw_dev->dev, "done");
+		aw_dev_dbg(aw_dev->dev, "done");
 
 	return ret;
 }
@@ -765,7 +765,7 @@ static int aw_dev_sysst_check(struct aw_device *aw_dev)
 	if (ret < 0)
 		aw_dev_err(aw_dev->dev, "check fail");
 	else
-		aw_dev_info(aw_dev->dev, "done");
+		aw_dev_dbg(aw_dev->dev, "done");
 
 	return ret;
 }
@@ -775,7 +775,7 @@ static void aw_dev_soft_reset(struct aw_device *aw_dev)
 	struct aw_soft_rst *reset = &aw_dev->soft_rst;
 
 	aw_dev->ops.aw_i2c_write(aw_dev->i2c, reset->reg, reset->reg_value);
-	aw_dev_info(aw_dev->dev, "soft reset done");
+	aw_dev_dbg(aw_dev->dev, "soft reset done");
 }
 
 
@@ -799,7 +799,7 @@ static void aw_dev_vol_offset_update(struct aw_device *aw_dev)
 	if (aw_dev->ops.aw_get_voltage_offset)
 		aw_dev->ops.aw_get_voltage_offset(aw_dev, &offset);
 	else {
-		aw_dev_info(aw_dev->dev, "unsupport, ignore voltage offset update");
+		aw_dev_dbg(aw_dev->dev, "unsupport, ignore voltage offset update");
 		return;
 	}
 
@@ -967,7 +967,7 @@ int aw882xx_device_start(struct aw_device *aw_dev)
 	aw_dev_algo_authentication(aw_dev);
 #endif
 	aw_dev->status = AW_DEV_PW_ON;
-	aw_dev_info(aw_dev->dev, "done");
+	aw_dev_dbg(aw_dev->dev, "done");
 	return 0;
 }
 
@@ -1008,7 +1008,7 @@ int aw882xx_device_stop(struct aw_device *aw_dev)
 	/*set power down*/
 	aw_dev_switch(aw_dev, &aw_dev->pwd_desc, true);
 
-	aw_dev_info(aw_dev->dev, "done");
+	aw_dev_dbg(aw_dev->dev, "done");
 	return 0;
 }
 
@@ -1031,7 +1031,7 @@ int aw882xx_dev_reg_update(struct aw_device *aw_dev, bool force)
 
 	aw_dev->cur_prof = aw_dev->set_prof;
 
-	aw_dev_info(aw_dev->dev, "done");
+	aw_dev_dbg(aw_dev->dev, "done");
 	return 0;
 }
 
@@ -1064,7 +1064,7 @@ void aw882xx_dev_mute(struct aw_device *aw_dev, bool mute)
 				mute_desc->disable);
 		aw_dev_fade_in(aw_dev);
 	}
-	aw_dev_info(aw_dev->dev, "done");
+	aw_dev_dbg(aw_dev->dev, "done");
 }
 
 int aw882xx_dev_set_volume(struct aw_device *aw_dev, unsigned int set_vol)
@@ -1263,7 +1263,7 @@ void aw882xx_dev_clear_int_status(struct aw_device *aw_dev)
 	aw882xx_dev_get_int_status(aw_dev, &int_status);
 	/*make suer int status is clear*/
 	aw882xx_dev_get_int_status(aw_dev, &int_status);
-	aw_dev_info(aw_dev->dev, "done");
+	aw_dev_dbg(aw_dev->dev, "done");
 }
 
 int aw882xx_dev_set_intmask(struct aw_device *aw_dev, bool flag)
@@ -1277,7 +1277,7 @@ int aw882xx_dev_set_intmask(struct aw_device *aw_dev, bool flag)
 	else
 		ret = aw_dev->ops.aw_i2c_write(aw_dev->i2c, desc->mask_reg,
 					desc->mask_default);
-	aw_dev_info(aw_dev->dev, "done");
+	aw_dev_dbg(aw_dev->dev, "done");
 	return ret;
 }
 

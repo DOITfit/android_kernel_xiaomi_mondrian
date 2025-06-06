@@ -503,7 +503,7 @@ void aw882xx_monitor_start(struct aw_monitor_desc *monitor_desc)
 	struct aw_device *aw_dev = container_of(monitor_desc,
 			struct aw_device, monitor_desc);
 
-	aw_dev_info(aw_dev->dev, "enter");
+	aw_dev_dbg(aw_dev->dev, "enter");
 
 	monitor_desc->first_entry = AW_FIRST_ENTRY;
 	monitor_desc->samp_count = 0;
@@ -529,7 +529,7 @@ int aw882xx_monitor_stop(struct aw_monitor_desc *monitor_desc)
 	struct aw_device *aw_dev = container_of(monitor_desc,
 			struct aw_device, monitor_desc);
 
-	aw_dev_info(aw_dev->dev, "enter");
+	aw_dev_dbg(aw_dev->dev, "enter");
 	aw_dev->volume_desc.monitor_volume = 0;
 	monitor_desc->mon_start_flag = false;
 
@@ -871,7 +871,7 @@ static int aw_monitor_parse_temp_data(struct aw_device *aw_dev, uint8_t *data)
 	struct aw_table_info *temp_info =
 		&aw_dev->monitor_desc.monitor_cfg.temp_info;
 
-	aw_dev_info(aw_dev->dev, "===parse temp start ===");
+	aw_dev_dbg(aw_dev->dev, "===parse temp start ===");
 
 	if (temp_info->aw_table != NULL) {
 		devm_kfree(aw_dev->dev, temp_info->aw_table);
@@ -887,7 +887,7 @@ static int aw_monitor_parse_temp_data(struct aw_device *aw_dev, uint8_t *data)
 	temp_info->table_num = monitor_hdr->temp_num;
 	aw_monitor_write_data_to_table(aw_dev, temp_info,
 		&data[monitor_hdr->temp_offset]);
-	aw_dev_info(aw_dev->dev, "===parse temp end ===");
+	aw_dev_dbg(aw_dev->dev, "===parse temp end ===");
 	return 0;
 }
 
@@ -898,7 +898,7 @@ static int aw_monitor_parse_temp_data_v_0_1_1(struct aw_device *aw_dev, uint8_t 
 	struct aw_table_info *temp_info =
 		&aw_dev->monitor_desc.monitor_cfg.temp_info;
 
-	aw_dev_info(aw_dev->dev, "===parse temp start ===");
+	aw_dev_dbg(aw_dev->dev, "===parse temp start ===");
 
 	if (temp_info->aw_table != NULL) {
 		devm_kfree(aw_dev->dev, temp_info->aw_table);
@@ -914,7 +914,7 @@ static int aw_monitor_parse_temp_data_v_0_1_1(struct aw_device *aw_dev, uint8_t 
 	temp_info->table_num = monitor_hdr->temp_num;
 	aw_monitor_write_data_to_table(aw_dev, temp_info,
 		&data[monitor_hdr->temp_offset]);
-	aw_dev_info(aw_dev->dev, "===parse temp end ===");
+	aw_dev_dbg(aw_dev->dev, "===parse temp end ===");
 	return 0;
 }
 
@@ -952,7 +952,7 @@ static int aw_monitor_parse_vol_data(struct aw_device *aw_dev, uint8_t *data)
 	struct aw_table_info *vol_info =
 		&aw_dev->monitor_desc.monitor_cfg.vol_info;
 
-	aw_dev_info(aw_dev->dev, "===parse vol start ===");
+	aw_dev_dbg(aw_dev->dev, "===parse vol start ===");
 	if (vol_info->aw_table != NULL) {
 		devm_kfree(aw_dev->dev, vol_info->aw_table);
 		vol_info->aw_table = NULL;
@@ -967,7 +967,7 @@ static int aw_monitor_parse_vol_data(struct aw_device *aw_dev, uint8_t *data)
 	vol_info->table_num = monitor_hdr->vol_num;
 	aw_monitor_write_data_to_table(aw_dev, vol_info,
 		&data[monitor_hdr->vol_offset]);
-	aw_dev_info(aw_dev->dev, "===parse vol end ===");
+	aw_dev_dbg(aw_dev->dev, "===parse vol end ===");
 	return 0;
 }
 
@@ -978,7 +978,7 @@ static int aw_monitor_parse_vol_data_v_0_1_1(struct aw_device *aw_dev, uint8_t *
 	struct aw_table_info *vol_info =
 		&aw_dev->monitor_desc.monitor_cfg.vol_info;
 
-	aw_dev_info(aw_dev->dev, "===parse vol start ===");
+	aw_dev_dbg(aw_dev->dev, "===parse vol start ===");
 	if (vol_info->aw_table != NULL) {
 		devm_kfree(aw_dev->dev, vol_info->aw_table);
 		vol_info->aw_table = NULL;
@@ -993,7 +993,7 @@ static int aw_monitor_parse_vol_data_v_0_1_1(struct aw_device *aw_dev, uint8_t *
 	vol_info->table_num = monitor_hdr->vol_num;
 	aw_monitor_write_data_to_table(aw_dev, vol_info,
 		&data[monitor_hdr->vol_offset]);
-	aw_dev_info(aw_dev->dev, "===parse vol end ===");
+	aw_dev_dbg(aw_dev->dev, "===parse vol end ===");
 	return 0;
 }
 
@@ -1401,7 +1401,7 @@ void aw882xx_monitor_init(struct aw_monitor_desc *monitor_desc)
 	struct aw_device *aw_dev = container_of(monitor_desc,
 				struct aw_device, monitor_desc);
 
-	aw_dev_info(aw_dev->dev, "enter");
+	aw_dev_dbg(aw_dev->dev, "enter");
 #ifdef AW_DEBUG
 	monitor_desc->test_vol = 0;
 	monitor_desc->test_temp = 0;
