@@ -6601,7 +6601,7 @@ static void qti_battery_register_panel_notifier_work(struct work_struct *work)
 
 	if (active_panel) {
 		cookie = panel_event_notifier_register(PANEL_EVENT_NOTIFICATION_PRIMARY,
-				PANEL_EVENT_NOTIFIER_CLIENT_CHARGE, active_panel,
+				PANEL_EVENT_NOTIFIER_CLIENT_MAX, active_panel,
 				screen_state_for_charge_callback, (void *)pvt_data);
 	} else if(retry_count > 0){
 		retry_count--;
@@ -6651,7 +6651,7 @@ static void qti_battery_register_panel_sec_notifier_work(struct work_struct *wor
 
 	if (active_panel_sec) {
 		cookie1 = panel_event_notifier_register(PANEL_EVENT_NOTIFICATION_SECONDARY,
-				PANEL_EVENT_NOTIFIER_CLIENT_CHARGE_SECOND, active_panel_sec,
+				PANEL_EVENT_NOTIFIER_CLIENT_ECM, active_panel_sec,
 				screen_state_for_charge_callback, (void *)pvt_data);
 	} else if(retry_count > 0){
 		retry_count--;
