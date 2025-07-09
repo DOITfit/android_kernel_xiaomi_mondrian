@@ -332,6 +332,7 @@ struct aw_device {
 	unsigned int re_min;
 	int voltage_offset_debug;
 	int32_t voltage_offset;
+	bool pll_check_disable;  /*disable pll*/
 
 	struct device *dev;
 	struct i2c_client *i2c;
