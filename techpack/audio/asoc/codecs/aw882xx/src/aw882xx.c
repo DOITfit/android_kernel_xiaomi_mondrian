@@ -2415,9 +2415,15 @@ static int aw882xx_parse_dt(struct device *dev, struct aw882xx *aw882xx,
 
 	ret = of_property_read_u32(np, "mute-sync", &mute_sync);
 	if (ret < 0) {
+#if defined (AW_QCOM_PLATFORM) || defined(AW_AUDIOREACH_PLATFORM)
 		aw_dev_info(aw882xx->dev,
-			"read mute sync failed,default mute sync off");
+			"read mute sync failed, default mute sync on");
+		mute_sync = true;
+#else
+		aw_dev_info(aw882xx->dev,
+			"read mute sync failed, default mute sync off");
 		mute_sync = false;
+#endif
 	} else {
 		aw_dev_info(aw882xx->dev,
 			"mute sync is %d", mute_sync);
